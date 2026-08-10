@@ -1,0 +1,363 @@
+[
+    {
+      "id": "elan-001",
+      "title": "Belarus 82.1 Traktor (Əla Vəziyyətdə)",
+      "description": "2020-ci il buraxılışı, az işlənib, 1200 motosaat. Bütün baxımları rəsmi servisdə olunub. Sənədləri qaydasındadır.",
+      "category": "Texnika",
+      "price": 24500,
+      "currency": "AZN",
+      "location": "Bərdə",
+      "phone": "+994501234567",
+      "ownerName": "Məmməd Əliyev",
+      "images": [
+        "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": true,
+      "isPremium": true,
+      "status": "active",
+      "createdAt": "2026-08-01T10:00:00Z"
+    },
+    {
+      "id": "elan-002",
+      "title": "NPK Kompleks Gübrə (20-20-20) 50 kq",
+      "description": "Türkiyə istehsalı, suda tam həll olan yüksək keyfiyyətli organomineral gübrə. Topdan və pərakəndə satış.",
+      "category": "Gübrə və Dərman",
+      "price": 65,
+      "currency": "AZN",
+      "location": "Xaçmaz",
+      "phone": "+994552345678",
+      "ownerName": "Aqro-Kimya MMC",
+      "images": [
+        "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": true,
+      "status": "active",
+      "createdAt": "2026-08-02T11:30:00Z"
+    },
+    {
+      "id": "elan-003",
+      "title": "Semental Cins Südlük İneklər",
+      "description": "Avstriyadan gətirilmiş 2-ci doğuş simmental inəklər. Günlük 25-28 litr süd verir. Sağlamlıq arayışları var.",
+      "category": "Heyvandarlıq",
+      "price": 3800,
+      "currency": "AZN",
+      "location": "Şəmkir",
+      "phone": "+994703456789",
+      "ownerName": "Vüsal Həsənov",
+      "images": [
+        "https://images.unsplash.com/photo-1546445317-29f4545f9d52?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": true,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-03T09:15:00Z"
+    },
+    {
+      "id": "elan-004",
+      "title": "Damcı Suvarma Boruları (1 Hektar Dəsti)",
+      "description": "İsrail texnologiyası ilə hazırlanmış, günəşə və təzyiqə dözümlü 16mm damcı suvarma xətləri.",
+      "category": "Suvarma Sistemləri",
+      "price": 1200,
+      "currency": "AZN",
+      "location": "Quba",
+      "phone": "+994504567890",
+      "ownerName": "Su-Aqro Servis",
+      "images": [
+        "https://images.unsplash.com/photo-1563514227147-6d2ff665a6a0?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-03T14:20:00Z"
+    },
+    {
+      "id": "elan-005",
+      "title": "Xaçmaz Fındıq Şitilləri (Atabaşı Cinsi)",
+      "description": "2 illik bol məhsuldar fındıq tingləri. Kök sistemi çox yaxşı inkişaf edib. Sertifikatlıdır.",
+      "category": "Bitki və Şitil",
+      "price": 3,
+      "currency": "AZN",
+      "location": "Xaçmaz",
+      "phone": "+994515678901",
+      "ownerName": "Elşən Babayev",
+      "images": [
+        "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-04T08:00:00Z"
+    },
+    {
+      "id": "elan-006",
+      "title": "John Deere 6120M Traktor (2021)",
+      "description": "Kondisionerli kabina, 120 at gücü, GPS naviqasiya sistemi daxildir. 800 motosaat işləyib.",
+      "category": "Texnika",
+      "price": 82000,
+      "currency": "AZN",
+      "location": "Gəncə",
+      "phone": "+994506789012",
+      "ownerName": "Rauf Qasımov",
+      "images": [
+        "https://images.unsplash.com/photo-1530267981375-f0de937f5f13?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": true,
+      "isPremium": true,
+      "status": "active",
+      "createdAt": "2026-08-04T12:45:00Z"
+    },
+    {
+      "id": "elan-007",
+      "title": "Keyfiyyətli Yonca Balyası (Prese Olunmuş)",
+      "description": "Yaşıl, otu bol, yağış görməmiş təzə biçim yonca balyaları. Çatdırılma böyük həcmdə mümkündür.",
+      "category": "Yem və Ot",
+      "price": 6,
+      "currency": "AZN",
+      "location": "Sabirabad",
+      "phone": "+994557890123",
+      "ownerName": "Kərəm Orucov",
+      "images": [
+        "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-05T09:30:00Z"
+    },
+    {
+      "id": "elan-008",
+      "title": "Quba Alma Tingləri (Fuji və Gala)",
+      "description": "İntensiv bağlar üçün uyğun calaq olunmuş törəmə tinglər. Yüksək məhsuldarlıq zəmanəti.",
+      "category": "Bitki və Şitil",
+      "price": 5,
+      "currency": "AZN",
+      "location": "Quba",
+      "phone": "+994708901234",
+      "ownerName": "Tahir Nəzirov",
+      "images": [
+        "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": true,
+      "status": "active",
+      "createdAt": "2026-08-05T15:10:00Z"
+    },
+    {
+      "id": "elan-009",
+      "title": "Claas Tucano 430 Tahıl Biçən Kombayn",
+      "description": "2018-ci il, 6 metrlik xeder ilə birlikdə. Bütün mexanizmləri işlək vəziyyətdədir.",
+      "category": "Texnika",
+      "price": 145000,
+      "currency": "AZN",
+      "location": "Yevlax",
+      "phone": "+994509012345",
+      "ownerName": "Agro-Tech MMC",
+      "images": [
+        "https://images.unsplash.com/photo-1595838788320-ef4e062638e4?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": true,
+      "isPremium": true,
+      "status": "active",
+      "createdAt": "2026-08-06T10:00:00Z"
+    },
+    {
+      "id": "elan-010",
+      "title": "Hollandiya İstehsalı Agria Kartof Toxumu",
+      "description": "1-ci reproduksiya, xəstəliklərə dözümlü, iri ölçülü toxumluq kartoflar. 30 ton mövcuddur.",
+      "category": "Bitki və Şitil",
+      "price": 1,
+      "currency": "AZN",
+      "location": "Tovuz",
+      "phone": "+994510123456",
+      "ownerName": "Eldar Zeynalov",
+      "images": [
+        "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-06T14:00:00Z"
+    },
+    {
+      "id": "elan-011",
+      "title": "Qala Cinsi Damazlıq Qoyunlar (15 Baş)",
+      "description": "Cins, irigövdəli, boğaz qoyunlar. İynə və peyvəndləri vaxtında vurulub.",
+      "category": "Heyvandarlıq",
+      "price": 320,
+      "currency": "AZN",
+      "location": "Bərdə",
+      "phone": "+994551234567",
+      "ownerName": "Səfər Quliyev",
+      "images": [
+        "https://images.unsplash.com/photo-1484557052118-f32bd25b45b5?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-07T08:30:00Z"
+    },
+    {
+      "id": "elan-012",
+      "title": "Alyans F1 Pomidor Şitilləri (İstixana Üçün)",
+      "description": "Kassetlərdə yetişdirilmiş, xəstəliklərə qarşı dözümlü hibrid pomidor şitilləri.",
+      "category": "Bitki və Şitil",
+      "price": 0.35,
+      "currency": "AZN",
+      "location": "Şəmkir",
+      "phone": "+994702345678",
+      "ownerName": "İstixana Aqro",
+      "images": [
+        "https://images.unsplash.com/photo-1592417817098-8f3d6eb23659?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": true,
+      "status": "active",
+      "createdAt": "2026-08-07T11:20:00Z"
+    },
+    {
+      "id": "elan-013",
+      "title": "Traktor Üçün Diskli Ot Biçən Aqreqat",
+      "description": "Polşa istehsalı 2.1 metr iş genişliyi olan otbiçən. İşlək vəziyyətdədir.",
+      "category": "Texnika",
+      "price": 3400,
+      "currency": "AZN",
+      "location": "Cəlilabad",
+      "phone": "+994503456789",
+      "ownerName": "Namiq İbrahimov",
+      "images": [
+        "https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-07T16:00:00Z"
+    },
+    {
+      "id": "elan-014",
+      "title": "Dizel Motorlu Su Nasosu (100 mm)",
+      "description": "Yüksək təzyiqli, saatda 80 kubmetr su vuran dizel pompası. Təzə kimidir.",
+      "category": "Suvarma Sistemləri",
+      "price": 1850,
+      "currency": "AZN",
+      "location": "Salyan",
+      "phone": "+994514567890",
+      "ownerName": "Araz Mexanizasiya",
+      "images": [
+        "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-08T09:00:00Z"
+    },
+    {
+      "id": "elan-015",
+      "title": "Qafqaz Dağ Arısı Ailələri (10 Çərçivə)",
+      "description": "Sakit təbiətli, bal vermə qabiliyyəti yüksək, cavan analı sağlam arı pətəkləri.",
+      "category": "Heyvandarlıq",
+      "price": 160,
+      "currency": "AZN",
+      "location": "Şəki",
+      "phone": "+994555678901",
+      "ownerName": "Arıçı Həmzə",
+      "images": [
+        "https://images.unsplash.com/photo-1587049352847-4a222e784d38?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": true,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-08T13:40:00Z"
+    },
+    {
+      "id": "elan-016",
+      "title": "Təmiz Orqanik Biohumus (1 Ton)",
+      "description": "Kalıforniya qırmızı qurdları tərəfindən emal edilmiş %100 təbii gübrə. Şitillik üçün idealdır.",
+      "category": "Gübrə və Dərman",
+      "price": 280,
+      "currency": "AZN",
+      "location": "Lənkəran",
+      "phone": "+994706789012",
+      "ownerName": "Eko-Bio MMC",
+      "images": [
+        "https://images.unsplash.com/photo-1615811361523-6bd03d7748e7?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-09T10:10:00Z"
+    },
+    {
+      "id": "elan-017",
+      "title": "Şəmkir İstixana Pomidoru (Təzə Dərim - Topdan)",
+      "description": "Əla növ Pink pomidor. Bərk, qırmızı, ixrac üçün tam uyğun. Qablaşdırma var.",
+      "category": "Məhsul Satışı",
+      "price": 1.8,
+      "currency": "AZN",
+      "location": "Şəmkir",
+      "phone": "+994507890123",
+      "ownerName": "Aqil Məmmədov",
+      "images": [
+        "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": true,
+      "isPremium": true,
+      "status": "active",
+      "createdAt": "2026-08-09T14:30:00Z"
+    },
+    {
+      "id": "elan-018",
+      "title": "Asılan Dərman Çiləyici (800 Litr)",
+      "description": "Traktor üçün 12 metrlik qolu olan italyan nasoslu çiləyici aparatı. Təzədir.",
+      "category": "Texnika",
+      "price": 2900,
+      "currency": "AZN",
+      "location": "İmişli",
+      "phone": "+994518901234",
+      "ownerName": "Şahmar Rəhimov",
+      "images": [
+        "https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-10T08:00:00Z"
+    },
+    {
+      "id": "elan-019",
+      "title": "Qobustan Cins Buğda Toxumu (1-ci Repr)",
+      "description": "Təmizlənmiş, dərmanlanmış səpinlik buğda. Quraqlığa və pas xəstəliyinə çox dözümlüdür.",
+      "category": "Bitki və Şitil",
+      "price": 0.65,
+      "currency": "AZN",
+      "location": "Şamaxı",
+      "phone": "+994559012345",
+      "ownerName": "Şamaxı Toxumçuluq",
+      "images": [
+        "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": true,
+      "status": "active",
+      "createdAt": "2026-08-10T09:20:00Z"
+    },
+    {
+      "id": "elan-020",
+      "title": "Kənd Təsərrüfatı Üçün Plastik Yeşiklər",
+      "description": "Meyvə və tərəvəz yığımı üçün dözümlü, 20 kq tutumu olan plastik qutular.",
+      "category": "Digər",
+      "price": 2.2,
+      "currency": "AZN",
+      "location": "Qəbələ",
+      "phone": "+994701112233",
+      "ownerName": "Plast-Aqro MMC",
+      "images": [
+        "https://images.unsplash.com/photo-1615811361523-6bd03d7748e7?auto=format&fit=crop&w=800&q=80"
+      ],
+      "isVip": false,
+      "isPremium": false,
+      "status": "active",
+      "createdAt": "2026-08-10T10:15:00Z"
+    }
+  ]
