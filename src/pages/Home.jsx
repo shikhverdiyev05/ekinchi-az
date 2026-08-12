@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../api";
 import { CATEGORIES } from "../utils/constants";
+import { describeError } from "../utils/errors";
 import ListingCard from "../components/ListingCard";
 import Spinner from "../components/Spinner";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 import {
   FiSearch,
   FiArrowRight,
@@ -18,14 +20,25 @@ import {
 export default function Home() {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadListings = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await API.listings.list();
+      setListings((res.listings || []).slice(0, 8));
+    } catch (e) {
+      setListings([]);
+      setError(describeError("Ana sehifede elanlar yuklenmedi", e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    API.listings
-      .list()
-      .then((res) => setListings((res.listings || []).slice(0, 8)))
-      .catch(() => setListings([]))
-      .finally(() => setLoading(false));
-  }, []);
+    loadListings();
+  }, [loadListings]);
 
   return (
     <div className="space-y-8 sm:space-y-10">
@@ -125,6 +138,8 @@ export default function Home() {
         </div>
         {loading ? (
           <Spinner />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadListings} />
         ) : listings.length === 0 ? (
           <EmptyState
             title="Elan tapılmadı"

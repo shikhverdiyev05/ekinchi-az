@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import API from "../api";
 import { useAuth } from "../context/AuthContext";
@@ -6,6 +6,8 @@ import ListingCard from "../components/ListingCard";
 import PostCard from "../components/PostCard";
 import Spinner from "../components/Spinner";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
+import { describeError } from "../utils/errors";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
 import { formatPrice, formatDate } from "../utils/constants";
@@ -39,13 +41,14 @@ export default function Profile() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const { toast, show } = useToast();
+  const { toast, show, showError, hide } = useToast();
   const [tab, setTab] = useState(params.get("tab") || "listings");
   const [listings, setListings] = useState([]);
   const [posts, setPosts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [saved, setSaved] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [form, setForm] = useState({
     fullName: user?.fullName || "",
     phone: user?.phone || "",
@@ -67,30 +70,37 @@ export default function Profile() {
     });
   }, [user]);
 
-  useEffect(() => {
-    setParams({ tab }, { replace: true });
+  const loadTab = useCallback(async () => {
     setLoading(true);
-    let p;
-    if (tab === "listings") p = API.listings.list({ userId: user?.id });
-    else if (tab === "orders") p = API.orders.list();
-    else if (tab === "saved") p = API.posts.saved();
-    else p = Promise.resolve({});
-
-    p.then((res) => {
-      if (tab === "listings") setListings(res.listings || []);
-      else if (tab === "orders") setOrders(res.orders || []);
-      else if (tab === "saved") setSaved(res.posts || []);
-    }).finally(() => setLoading(false));
-
-    if (tab === "posts") {
-      API.posts
-        .list()
-        .then((res) =>
-          setPosts((res.posts || []).filter((p) => p.author?.id === user?.id))
-        )
-        .finally(() => setLoading(false));
+    setLoadError("");
+    try {
+      if (tab === "listings") {
+        const res = await API.listings.list({ userId: user?.id });
+        setListings(res.listings || []);
+      } else if (tab === "orders") {
+        const res = await API.orders.list();
+        setOrders(res.orders || []);
+      } else if (tab === "saved") {
+        const res = await API.posts.saved();
+        setSaved(res.posts || []);
+      } else if (tab === "posts") {
+        const res = await API.posts.list();
+        setPosts((res.posts || []).filter((p) => p.author?.id === user?.id));
+      }
+    } catch (e) {
+      setLoadError(describeError(`Profil melumatlari yuklenmedi (${tab})`, e));
+    } finally {
+      setLoading(false);
     }
   }, [tab, user]);
+
+  useEffect(() => {
+    setParams({ tab }, { replace: true });
+  }, [tab, setParams]);
+
+  useEffect(() => {
+    loadTab();
+  }, [loadTab]);
 
   const saveProfile = async (e) => {
     e.preventDefault();
@@ -99,7 +109,7 @@ export default function Profile() {
       await updateProfile(form);
       show("Məlumat yenilendi", "success");
     } catch (err) {
-      show("Yenilenmədi", "error");
+      showError("Profil yenilenmedi", err, "Məlumat yenilənmədi");
     } finally {
       setSaving(false);
     }
@@ -112,7 +122,7 @@ export default function Profile() {
       setListings((l) => l.filter((x) => x.id !== id));
       show("Elan silindi", "success");
     } catch (e) {
-      show("Silinmədi", "error");
+      showError(`Elan silinmedi (${id})`, e, "Elan silinmədi");
     }
   };
 
@@ -184,6 +194,8 @@ export default function Profile() {
       {/* Content */}
       {loading ? (
         <Spinner />
+      ) : loadError ? (
+        <ErrorState message={loadError} onRetry={loadTab} />
       ) : tab === "listings" ? (
         listings.length === 0 ? (
           <EmptyState
@@ -228,7 +240,14 @@ export default function Profile() {
             }
           />
         ) : (
-          posts.map((p) => <PostCard key={p.id} post={p} onDelete={deletePost} />)
+          posts.map((p) => (
+            <PostCard
+              key={p.id}
+              post={p}
+              onDelete={deletePost}
+              onError={(message) => show(message, "error")}
+            />
+          ))
         )
       ) : tab === "orders" ? (
         orders.length === 0 ? (
@@ -303,7 +322,13 @@ export default function Profile() {
             }
           />
         ) : (
-          saved.map((p) => <PostCard key={p.id} post={p} />)
+          saved.map((p) => (
+            <PostCard
+              key={p.id}
+              post={p}
+              onError={(message) => show(message, "error")}
+            />
+          ))
         )
       ) : (
         <form onSubmit={saveProfile} className="max-w-lg space-y-4">
@@ -368,7 +393,7 @@ export default function Profile() {
         </form>
       )}
 
-      <Toast {...toast} onClose={() => {}} />
+      <Toast {...toast} onClose={hide} />
     </div>
   );
 }

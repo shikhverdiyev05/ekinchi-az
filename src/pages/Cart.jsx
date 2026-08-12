@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../api";
 import { useAuth } from "../context/AuthContext";
@@ -6,6 +6,8 @@ import { formatPrice } from "../utils/constants";
 import { safeImageUrl } from "../utils/security";
 import Spinner from "../components/Spinner";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
+import { describeError } from "../utils/errors";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
 import { FiTrash2, FiShoppingCart, FiCheck, FiChevronLeft } from "react-icons/fi";
@@ -13,26 +15,33 @@ import { FiTrash2, FiShoppingCart, FiCheck, FiChevronLeft } from "react-icons/fi
 export default function Cart() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast, show } = useToast();
+  const { toast, show, showError, hide } = useToast();
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const fetch = () => {
+  const loadCart = useCallback(async () => {
     setLoading(true);
-    API.basket
-      .list()
-      .then((res) => setCart(res.basket || []))
-      .finally(() => setLoading(false));
-  };
+    setLoadError("");
+    try {
+      const res = await API.basket.list();
+      setCart(res.basket || []);
+    } catch (e) {
+      setCart([]);
+      setLoadError(describeError("Sebet yuklenmedi", e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) {
       navigate("/login");
       return;
     }
-    fetch();
-  }, [user]);
+    loadCart();
+  }, [user, navigate, loadCart]);
 
   const remove = async (listingId) => {
     try {
@@ -40,7 +49,7 @@ export default function Cart() {
       setCart((c) => c.filter((x) => x.listingId !== listingId));
       show("Səbətdən silindi", "success");
     } catch (e) {
-      show("Silinmədi", "error");
+      showError("Sebetden silinmedi", e, "Səbətdən silinmədi");
     }
   };
 
@@ -63,7 +72,7 @@ export default function Cart() {
       setCart([]);
       navigate("/profile?tab=orders");
     } catch (e) {
-      show("Sifariş yaranmadı", "error");
+      showError("Sifaris yaranmadi", e, "Sifariş yaranmadı");
     } finally {
       setSubmitting(false);
     }
@@ -72,6 +81,7 @@ export default function Cart() {
   const total = cart.reduce((sum, c) => sum + (Number(c.listing?.price) || 0), 0);
 
   if (loading) return <Spinner />;
+  if (loadError) return <ErrorState message={loadError} onRetry={loadCart} />;
 
   return (
     <div>
@@ -173,7 +183,7 @@ export default function Cart() {
         </div>
       )}
 
-      <Toast {...toast} onClose={() => {}} />
+      <Toast {...toast} onClose={hide} />
     </div>
   );
 }

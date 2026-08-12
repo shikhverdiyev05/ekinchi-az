@@ -1,3 +1,5 @@
+import { AppError, logError } from "./errors";
+
 export const STORAGE_KEYS = {
   token: "aqro_token",
   currentUser: "aqro_current_user",
@@ -14,10 +16,19 @@ export const STORAGE_KEYS = {
 };
 
 export function read(key, fallback = null) {
+  let raw;
   try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
+    raw = localStorage.getItem(key);
+  } catch (e) {
+    logError(`LocalStorage oxunmadi (${key})`, e);
+    return fallback;
+  }
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    logError(`LocalStorage-daki melumat zedelenmisdir (${key})`, e);
+    remove(key);
     return fallback;
   }
 }
@@ -25,15 +36,28 @@ export function read(key, fallback = null) {
 export function write(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch (e) {
-    console.warn("LocalStorage yazilmadi", e);
+    logError(`LocalStorage yazilmadi (${key})`, e);
+    return false;
   }
 }
 
 export function remove(key) {
   try {
     localStorage.removeItem(key);
-  } catch {}
+  } catch (e) {
+    logError(`LocalStorage silinmedi (${key})`, e);
+  }
+}
+
+export function writeOrThrow(key, value) {
+  if (!write(key, value)) {
+    throw new AppError(
+      "Məlumat brauzer yaddaşına yazıla bilmədi. Yaddaş dolu ola bilər.",
+      { code: "STORAGE_WRITE_FAILED" }
+    );
+  }
 }
 
 export function genId(prefix = "id") {

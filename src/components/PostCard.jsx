@@ -11,8 +11,9 @@ import { useAuth } from "../context/AuthContext";
 import API from "../api";
 import { timeAgo } from "../utils/constants";
 import { LIMITS, safeImageUrl, safeImageUrls } from "../utils/security";
+import { describeError } from "../utils/errors";
 
-export default function PostCard({ post, onDelete }) {
+export default function PostCard({ post, onDelete, onError }) {
   const { user } = useAuth();
   const [liked, setLiked] = useState(post.isLikedByMe || false);
   const [likesCount, setLikesCount] = useState(post.likesCount || 0);
@@ -22,6 +23,13 @@ export default function PostCard({ post, onDelete }) {
   const [newComment, setNewComment] = useState("");
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentCount, setCommentCount] = useState(post.commentsCount || 0);
+  const [commentsError, setCommentsError] = useState("");
+
+  const reportError = (context, error, fallback) => {
+    const message = describeError(context, error, fallback);
+    onError?.(message);
+    return message;
+  };
 
   const toggleLike = async () => {
     if (!user) return;
@@ -33,6 +41,7 @@ export default function PostCard({ post, onDelete }) {
     } catch (e) {
       setLiked(prevLiked);
       setLikesCount((n) => n + (prevLiked ? 1 : -1));
+      reportError(`Bejenme yazilmadi (${post.id})`, e, "Bəyənmə yazılmadı");
     }
   };
 
@@ -44,15 +53,20 @@ export default function PostCard({ post, onDelete }) {
       await API.posts.toggleSave(post.id);
     } catch (e) {
       setSaved(prev);
+      reportError(`Post saxlanilmadi (${post.id})`, e, "Post saxlanılmadı");
     }
   };
 
   const loadComments = async () => {
     setLoadingComments(true);
+    setCommentsError("");
     try {
       const res = await API.posts.comments(post.id);
       setComments(res.comments || []);
     } catch (e) {
+      setCommentsError(
+        describeError(`Serhler yuklenmedi (${post.id})`, e, "Şərhlər yüklənmədi")
+      );
     } finally {
       setLoadingComments(false);
     }
@@ -71,7 +85,12 @@ export default function PostCard({ post, onDelete }) {
       setComments((c) => [...c, res.comment]);
       setCommentCount((n) => n + 1);
       setNewComment("");
-    } catch (err) {}
+      setCommentsError("");
+    } catch (err) {
+      setCommentsError(
+        reportError(`Serh elave edilmedi (${post.id})`, err, "Şərh əlavə edilmədi")
+      );
+    }
   };
 
   const deleteComment = async (id) => {
@@ -80,7 +99,11 @@ export default function PostCard({ post, onDelete }) {
       await API.posts.deleteComment(id, post.id);
       setComments((c) => c.filter((x) => x.id !== id));
       setCommentCount((n) => Math.max(0, n - 1));
-    } catch (e) {}
+    } catch (e) {
+      setCommentsError(
+        reportError(`Serh silinmedi (${id})`, e, "Şərh silinmədi")
+      );
+    }
   };
 
   const deletePost = async () => {
@@ -88,7 +111,9 @@ export default function PostCard({ post, onDelete }) {
     try {
       await API.posts.remove(post.id);
       onDelete?.(post.id);
-    } catch (e) {}
+    } catch (e) {
+      reportError(`Post silinmedi (${post.id})`, e, "Post silinmədi");
+    }
   };
 
   const images = safeImageUrls(post.images);
@@ -187,7 +212,18 @@ export default function PostCard({ post, onDelete }) {
       {showComments && (
         <div className="mt-4 pt-3 border-t border-gray-100 space-y-3">
           {loadingComments && <p className="text-sm text-gray-400">Yüklənir...</p>}
-          {!loadingComments && comments.length === 0 && (
+          {commentsError && (
+            <div className="flex items-center justify-between gap-2 bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
+              <span>{commentsError}</span>
+              <button
+                onClick={loadComments}
+                className="underline shrink-0 hover:no-underline"
+              >
+                Yenidən
+              </button>
+            </div>
+          )}
+          {!loadingComments && !commentsError && comments.length === 0 && (
             <p className="text-sm text-gray-400">Hələ şərh yoxdur</p>
           )}
           {comments.map((c) => (

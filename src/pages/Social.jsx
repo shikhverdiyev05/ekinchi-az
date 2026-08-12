@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../api";
 import { useAuth } from "../context/AuthContext";
 import PostCard from "../components/PostCard";
 import Spinner from "../components/Spinner";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
+import { describeError } from "../utils/errors";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
 import { FiPlus, FiInfo } from "react-icons/fi";
@@ -13,23 +15,30 @@ import { LIMITS } from "../utils/security";
 export default function Social() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast, show } = useToast();
+  const { toast, show, showError, hide } = useToast();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const fetch = () => {
+  const loadPosts = useCallback(async () => {
     setLoading(true);
-    API.posts
-      .list()
-      .then((res) => setPosts(res.posts || []))
-      .finally(() => setLoading(false));
-  };
+    setLoadError("");
+    try {
+      const res = await API.posts.list();
+      setPosts(res.posts || []);
+    } catch (e) {
+      setPosts([]);
+      setLoadError(describeError("Postlar yuklenmedi", e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetch();
-  }, []);
+    loadPosts();
+  }, [loadPosts]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -42,7 +51,7 @@ export default function Social() {
       setContent("");
       show("Post paylaşıldı", "success");
     } catch (e) {
-      show("Paylaşılmadı", "error");
+      showError("Post paylasilmadi", e, "Post paylaşılmadı");
     } finally {
       setSubmitting(false);
     }
@@ -81,6 +90,8 @@ export default function Social() {
 
           {loading ? (
             <Spinner />
+          ) : loadError ? (
+            <ErrorState message={loadError} onRetry={loadPosts} />
           ) : posts.length === 0 ? (
             <EmptyState
               title="Hələ post yoxdur"
@@ -94,7 +105,14 @@ export default function Social() {
               }
             />
           ) : (
-            posts.map((p) => <PostCard key={p.id} post={p} onDelete={handleDelete} />)
+            posts.map((p) => (
+              <PostCard
+                key={p.id}
+                post={p}
+                onDelete={handleDelete}
+                onError={(message) => show(message, "error")}
+              />
+            ))
           )}
         </div>
 
@@ -118,7 +136,7 @@ export default function Social() {
         </div>
       </div>
 
-      <Toast {...toast} onClose={() => {}} />
+      <Toast {...toast} onClose={hide} />
     </div>
   );
 }
