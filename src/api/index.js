@@ -1,6 +1,63 @@
 import api from "./axios";
 import { read, write, genId, getDeletedSet, addDeleted } from "../utils/store";
 import { STORAGE_KEYS } from "../utils/store";
+import {
+  DEMO_EMAIL,
+  DEMO_PASSWORD,
+  LIMITS,
+  forbidden,
+  hashPassword,
+  randomToken,
+  safeImageUrls,
+  sanitizeText,
+  unauthorized,
+  verifyPassword,
+} from "../utils/security";
+
+function requireUser() {
+  const current = read(STORAGE_KEYS.currentUser);
+  if (!current) throw unauthorized();
+  return current;
+}
+
+function ownerIdOf(item) {
+  return item?.owner?.id ?? item?.author?.id ?? item?.userId ?? null;
+}
+
+function requireOwnership(item, current) {
+  const owner = ownerIdOf(item);
+  if (!owner || owner !== current.id) throw forbidden();
+}
+
+function publicUser(user) {
+  const { password: _p, passwordHash: _h, passwordSalt: _s, ...safe } = user;
+  return safe;
+}
+
+function profilePatch(data = {}) {
+  const patch = {};
+  if ("fullName" in data) patch.fullName = sanitizeText(data.fullName, LIMITS.name);
+  if ("phone" in data) patch.phone = sanitizeText(data.phone, LIMITS.phone);
+  if ("region" in data) patch.region = sanitizeText(data.region, LIMITS.region);
+  if ("bio" in data) patch.bio = sanitizeText(data.bio, LIMITS.bio);
+  if ("avatar" in data) patch.avatar = safeImageUrls([data.avatar])[0] || "";
+  return patch;
+}
+
+function listingPayload(data = {}) {
+  return {
+    title: sanitizeText(data.title, LIMITS.title),
+    description: sanitizeText(data.description, LIMITS.description),
+    type: data.type === "rent" ? "rent" : "sale",
+    category: sanitizeText(data.category, LIMITS.name),
+    subcategory: data.subcategory ? sanitizeText(data.subcategory, LIMITS.name) : null,
+    price: Number.isFinite(Number(data.price)) ? Math.max(0, Number(data.price)) : 0,
+    currency: ["AZN", "USD", "EUR"].includes(data.currency) ? data.currency : "AZN",
+    priceUnit: data.priceUnit ? sanitizeText(data.priceUnit, LIMITS.name) : null,
+    region: sanitizeText(data.region, LIMITS.region),
+    images: safeImageUrls(data.images),
+  };
+}
 
 async function fetchCollection(path, fallback = []) {
   const res = await api.get(path);
@@ -34,93 +91,105 @@ function loadLocal(key) {
 const API = {
   auth: {
     async login(email, password) {
-      const serverUsers = await fetchCollection("/users");
-      const localUsers = read(STORAGE_KEYS.localUsers, []);
-      // Demo user-ə default password təyin edirik (server user-lərində password yoxdur)
-      const DEMO_PW = "demo123";
-      const serverWithPw = serverUsers.map((u) => ({
-        ...u,
-        password: u.password || DEMO_PW,
-      }));
-      const allUsers = [
-        ...serverWithPw,
-        ...localUsers.filter((u) => !serverUsers.some((x) => x.id === u.id)),
-      ];
-      const found = allUsers.find(
-        (u) => u.email === email && u.password === password
-      );
-      if (!found) {
+      const normalizedEmail = String(email || "").trim().toLowerCase();
+      const invalid = () => {
         const e = new Error("Email və ya şifrə yanlışdır");
         e.response = { status: 401, data: { message: e.message } };
-        throw e;
+        return e;
+      };
+
+      const localUsers = read(STORAGE_KEYS.localUsers, []);
+      const local = localUsers.find(
+        (u) => String(u.email || "").toLowerCase() === normalizedEmail
+      );
+      if (local) {
+        const ok = await verifyPassword(password, local.passwordSalt, local.passwordHash);
+        if (!ok) throw invalid();
+        const safe = publicUser(local);
+        write(STORAGE_KEYS.token, randomToken());
+        write(STORAGE_KEYS.currentUser, safe);
+        return { token: read(STORAGE_KEYS.token), user: safe };
       }
-      const { password: p, ...safe } = found;
-      const token = genId("tok");
-      write(STORAGE_KEYS.token, token);
+
+      // Mock backend has no credential store; only the documented demo account
+      // can be signed into, and never with another user's identity.
+      if (normalizedEmail !== DEMO_EMAIL || password !== DEMO_PASSWORD) {
+        throw invalid();
+      }
+      const serverUsers = await fetchCollection("/users");
+      const demo = serverUsers.find(
+        (u) => String(u.email || "").toLowerCase() === DEMO_EMAIL
+      );
+      if (!demo) throw invalid();
+      const safe = publicUser(demo);
+      write(STORAGE_KEYS.token, randomToken());
       write(STORAGE_KEYS.currentUser, safe);
-      return { token, user: safe };
+      return { token: read(STORAGE_KEYS.token), user: safe };
     },
 
     async register(data) {
+      const email = String(data.email || "").trim().toLowerCase();
+      const password = String(data.password || "");
+      if (!email || password.length < 6) {
+        const e = new Error("Email və ən azı 6 simvollu şifrə tələb olunur");
+        e.response = { status: 400, data: { message: e.message } };
+        throw e;
+      }
       const serverUsers = await fetchCollection("/users");
       const localUsers = read(STORAGE_KEYS.localUsers, []);
       const all = [...serverUsers, ...localUsers];
-      if (all.some((u) => u.email === data.email)) {
+      if (all.some((u) => String(u.email || "").toLowerCase() === email)) {
         const e = new Error("Bu email artıq istifade olunur");
         e.response = { status: 409, data: { message: e.message } };
         throw e;
       }
+      const { salt, hash } = await hashPassword(password);
       const user = {
-        id: data.id || genId("usr"),
-        fullName: data.fullName,
-        email: data.email,
-        password: data.password,
-        phone: data.phone || "",
-        avatar: data.avatar || "",
-        region: data.region || "",
+        id: genId("usr"),
+        fullName: sanitizeText(data.fullName, LIMITS.name),
+        email,
+        passwordSalt: salt,
+        passwordHash: hash,
+        phone: sanitizeText(data.phone, LIMITS.phone),
+        avatar: safeImageUrls([data.avatar])[0] || "",
+        region: sanitizeText(data.region, LIMITS.region),
         balance: 0,
-        bio: data.bio || "",
+        bio: sanitizeText(data.bio, LIMITS.bio),
         createdAt: new Date().toISOString(),
       };
       localUsers.push(user);
       write(STORAGE_KEYS.localUsers, localUsers);
-      const { password, ...safe } = user;
-      const token = genId("tok");
-      write(STORAGE_KEYS.token, token);
+      const safe = publicUser(user);
+      write(STORAGE_KEYS.token, randomToken());
       write(STORAGE_KEYS.currentUser, safe);
-      return { token, user: safe };
+      return { token: read(STORAGE_KEYS.token), user: safe };
     },
 
     async getMe() {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("Not authenticated");
-        e.response = { status: 401 };
-        throw e;
-      }
+      const current = requireUser();
       const localUsers = read(STORAGE_KEYS.localUsers, []);
       const updated = localUsers.find((u) => u.id === current.id);
       if (updated) {
-        const { password, ...safe } = updated;
+        const safe = publicUser(updated);
         write(STORAGE_KEYS.currentUser, safe);
         return { user: safe };
       }
-      return { user: current };
+      return { user: publicUser(current) };
     },
 
     async updateProfile(data) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) throw new Error("auth");
+      const current = requireUser();
+      const patch = profilePatch(data);
       let localUsers = read(STORAGE_KEYS.localUsers, []);
       const idx = localUsers.findIndex((u) => u.id === current.id);
       if (idx >= 0) {
-        localUsers[idx] = { ...localUsers[idx], ...data };
+        localUsers[idx] = { ...localUsers[idx], ...patch };
         write(STORAGE_KEYS.localUsers, localUsers);
-        const { password, ...safe } = localUsers[idx];
+        const safe = publicUser(localUsers[idx]);
         write(STORAGE_KEYS.currentUser, safe);
         return { user: safe };
       }
-      const updated = { ...current, ...data };
+      const updated = publicUser({ ...current, ...patch });
       write(STORAGE_KEYS.currentUser, updated);
       return { user: updated };
     },
@@ -166,28 +235,16 @@ const API = {
       const allUsers = [...localUsers, ...usersRes];
       const ownerId = listing.owner?.id || listing.userId;
       const owner = allUsers.find((u) => u.id === ownerId) || listing.owner;
-      return { listing, owner };
+      return { listing, owner: owner ? publicUser(owner) : owner };
     },
 
     async create(data) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
-        throw e;
-      }
+      const current = requireUser();
+      const payload = listingPayload(data);
       const listing = {
         id: genId("lst"),
-        title: data.title,
-        description: data.description || "",
-        type: data.type || "sale",
-        category: data.category || "",
-        subcategory: data.subcategory || null,
-        price: Number(data.price) || 0,
-        currency: data.currency || "AZN",
-        priceUnit: data.priceUnit || (data.type === "rent" ? "gün" : null),
-        region: data.region || "",
-        images: data.images || [],
+        ...payload,
+        priceUnit: payload.priceUnit || (payload.type === "rent" ? "gün" : null),
         owner: {
           id: current.id,
           fullName: current.fullName,
@@ -203,20 +260,51 @@ const API = {
     },
 
     async update(id, data) {
+      const current = requireUser();
       const local = read(STORAGE_KEYS.localListings, []);
       const idx = local.findIndex((l) => l.id === id);
       if (idx >= 0) {
-        local[idx] = { ...local[idx], ...data };
+        requireOwnership(local[idx], current);
+        local[idx] = { ...local[idx], ...listingPayload({ ...local[idx], ...data }) };
         write(STORAGE_KEYS.localListings, local);
         return { listing: local[idx] };
       }
-      return { listing: { id, ...data } };
+      const serverItems = await fetchCollection("/listings");
+      const remote = serverItems.find((l) => l.id === id);
+      if (!remote) {
+        const e = new Error("Not found");
+        e.response = { status: 404 };
+        throw e;
+      }
+      requireOwnership(remote, current);
+      const updated = { ...remote, ...listingPayload({ ...remote, ...data }) };
+      local.push(updated);
+      write(STORAGE_KEYS.localListings, local);
+      addDeleted(id);
+      return { listing: updated };
     },
 
     async remove(id) {
+      const current = requireUser();
       const local = read(STORAGE_KEYS.localListings, []);
-      const filtered = local.filter((l) => l.id !== id);
-      write(STORAGE_KEYS.localListings, filtered);
+      const owned = local.find((l) => l.id === id);
+      if (owned) {
+        requireOwnership(owned, current);
+        write(
+          STORAGE_KEYS.localListings,
+          local.filter((l) => l.id !== id)
+        );
+        addDeleted(id);
+        return { success: true };
+      }
+      const serverItems = await fetchCollection("/listings");
+      const remote = serverItems.find((l) => l.id === id);
+      if (!remote) {
+        const e = new Error("Not found");
+        e.response = { status: 404 };
+        throw e;
+      }
+      requireOwnership(remote, current);
       addDeleted(id);
       return { success: true };
     },
@@ -246,21 +334,16 @@ const API = {
     },
 
     async create(data) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
-        throw e;
-      }
+      const current = requireUser();
       const post = {
         id: genId("post"),
         author: {
           id: current.id,
           fullName: current.fullName,
-          avatar: current.avatar || "",
+          avatar: safeImageUrls([current.avatar])[0] || "",
         },
-        content: data.content || "",
-        images: data.images || [],
+        content: sanitizeText(data.content, LIMITS.postContent),
+        images: safeImageUrls(data.images),
         likesCount: 0,
         commentsCount: 0,
         isLikedByMe: false,
@@ -274,16 +357,32 @@ const API = {
     },
 
     async remove(id) {
+      const current = requireUser();
       const local = read(STORAGE_KEYS.localPosts, []);
-      write(
-        STORAGE_KEYS.localPosts,
-        local.filter((p) => p.id !== id)
-      );
+      const owned = local.find((p) => p.id === id);
+      if (owned) {
+        requireOwnership(owned, current);
+        write(
+          STORAGE_KEYS.localPosts,
+          local.filter((p) => p.id !== id)
+        );
+        addDeleted(id);
+        return { success: true };
+      }
+      const serverItems = await fetchCollection("/posts");
+      const remote = serverItems.find((p) => p.id === id);
+      if (!remote) {
+        const e = new Error("Not found");
+        e.response = { status: 404 };
+        throw e;
+      }
+      requireOwnership(remote, current);
       addDeleted(id);
       return { success: true };
     },
 
     async toggleLike(id) {
+      requireUser();
       let liked = read(STORAGE_KEYS.likedPosts, []);
       const has = liked.includes(id);
       if (has) liked = liked.filter((x) => x !== id);
@@ -293,6 +392,7 @@ const API = {
     },
 
     async toggleSave(id) {
+      requireUser();
       let saved = read(STORAGE_KEYS.savedPosts, []);
       const has = saved.includes(id);
       if (has) saved = saved.filter((x) => x !== id);
@@ -314,10 +414,11 @@ const API = {
     },
 
     async addComment(postId, content) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
+      const current = requireUser();
+      const text = sanitizeText(content, LIMITS.comment);
+      if (!text) {
+        const e = new Error("Şərh boş ola bilməz");
+        e.response = { status: 400, data: { message: e.message } };
         throw e;
       }
       const comment = {
@@ -327,7 +428,7 @@ const API = {
           id: current.id,
           fullName: current.fullName,
         },
-        text: content,
+        text,
         createdAt: new Date().toISOString(),
       };
       const localMap = read(STORAGE_KEYS.localComments, {});
@@ -339,10 +440,25 @@ const API = {
     },
 
     async deleteComment(commentId, postId) {
+      const current = requireUser();
       const localMap = read(STORAGE_KEYS.localComments, {});
       const arr = localMap[postId] || [];
-      localMap[postId] = arr.filter((c) => c.id !== commentId);
-      write(STORAGE_KEYS.localComments, localMap);
+      const owned = arr.find((c) => c.id === commentId);
+      if (owned) {
+        requireOwnership(owned, current);
+        localMap[postId] = arr.filter((c) => c.id !== commentId);
+        write(STORAGE_KEYS.localComments, localMap);
+        addDeleted(commentId);
+        return { success: true };
+      }
+      const serverMap = await fetchCollection("/comments", {});
+      const remote = (serverMap[postId] || []).find((c) => c.id === commentId);
+      if (!remote) {
+        const e = new Error("Not found");
+        e.response = { status: 404 };
+        throw e;
+      }
+      requireOwnership(remote, current);
       addDeleted(commentId);
       return { success: true };
     },
@@ -387,12 +503,7 @@ const API = {
     },
 
     async add(listingId) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
-        throw e;
-      }
+      const current = requireUser();
       const localMap = read(STORAGE_KEYS.basket, {});
       const arr = localMap[current.id] || [];
       if (!arr.some((i) => i.listingId === listingId)) {
@@ -404,7 +515,7 @@ const API = {
     },
 
     async remove(listingId) {
-      const current = read(STORAGE_KEYS.currentUser);
+      const current = requireUser();
       const localMap = read(STORAGE_KEYS.basket, {});
       const arr = localMap[current.id] || [];
       localMap[current.id] = arr.filter((i) => i.listingId !== listingId);
@@ -413,7 +524,7 @@ const API = {
     },
 
     async clear() {
-      const current = read(STORAGE_KEYS.currentUser);
+      const current = requireUser();
       const localMap = read(STORAGE_KEYS.basket, {});
       localMap[current.id] = [];
       write(STORAGE_KEYS.basket, localMap);

@@ -12,6 +12,7 @@ import {
   categoryName,
   formatDate,
 } from "../utils/constants";
+import { safeImageUrl, safeImageUrls } from "../utils/security";
 import Spinner from "../components/Spinner";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
@@ -38,6 +39,7 @@ export default function ListingDetail() {
   const [rental, setRental] = useState({ startDate: "", endDate: "", notes: "" });
   const [submitting, setSubmitting] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
+  const images = safeImageUrls(listing?.images);
 
   useEffect(() => {
     setLoading(true);
@@ -124,9 +126,9 @@ export default function ListingDetail() {
         <div className="lg:col-span-2">
           <div className="card overflow-hidden">
             <div className="aspect-video bg-gradient-to-br from-brand-100 to-brand-50 flex items-center justify-center">
-              {listing.images?.[activeImg] ? (
+              {images[activeImg] ? (
                 <img
-                  src={listing.images[activeImg]}
+                  src={images[activeImg]}
                   alt={listing.title}
                   className="w-full h-full object-cover"
                 />
@@ -134,9 +136,9 @@ export default function ListingDetail() {
                 <div className="text-8xl text-brand-200">🌾</div>
               )}
             </div>
-            {listing.images?.length > 1 && (
+            {images.length > 1 && (
               <div className="flex gap-2 p-3 overflow-x-auto">
-                {listing.images.map((img, i) => (
+                {images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setActiveImg(i)}
@@ -281,9 +283,9 @@ export default function ListingDetail() {
                 <h3 className="font-semibold text-gray-800 mb-3">Elan sahibi</h3>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold overflow-hidden">
-                    {owner.avatar ? (
+                    {safeImageUrl(owner.avatar) ? (
                       <img
-                        src={owner.avatar}
+                        src={safeImageUrl(owner.avatar)}
                         alt=""
                         className="w-full h-full object-cover"
                       />
@@ -297,7 +299,7 @@ export default function ListingDetail() {
                     </div>
                     {owner.phone && (
                       <a
-                        href={`tel:${owner.phone}`}
+                        href={`tel:${encodeURIComponent(owner.phone)}`}
                         className="text-sm text-gray-500 hover:text-brand-700 flex items-center gap-1"
                       >
                         <FiPhone /> {owner.phone}

@@ -8,6 +8,7 @@ import EmptyState from "../components/EmptyState";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
 import { FiPlus, FiInfo } from "react-icons/fi";
+import { LIMITS } from "../utils/security";
 
 export default function Social() {
   const { user } = useAuth();
@@ -60,6 +61,7 @@ export default function Social() {
           {user && (
             <form onSubmit={submit} className="card p-3 sm:p-4 mb-4">
               <textarea
+                maxLength={LIMITS.postContent}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="Fikirlərinizi bölüşün, sual verin, problemləri müzakirə edin..."

@@ -9,6 +9,7 @@ import EmptyState from "../components/EmptyState";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
 import { formatPrice, formatDate } from "../utils/constants";
+import { LIMITS, safeImageUrl } from "../utils/security";
 import {
   FiList,
   FiMessageSquare,
@@ -127,8 +128,12 @@ export default function Profile() {
       <div className="card p-4 sm:p-6 mb-6 bg-gradient-to-br from-brand-50 to-white">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center text-2xl sm:text-3xl font-bold overflow-hidden shrink-0">
-            {user.avatar ? (
-              <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+            {safeImageUrl(user.avatar) ? (
+              <img
+                src={safeImageUrl(user.avatar)}
+                alt=""
+                className="w-full h-full object-cover"
+              />
             ) : (
               user.fullName?.charAt(0).toUpperCase()
             )}
@@ -306,6 +311,7 @@ export default function Profile() {
             <label className="label">Ad Soyad</label>
             <input
               required
+              maxLength={LIMITS.name}
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               className="input"
@@ -326,6 +332,7 @@ export default function Profile() {
             <div className="relative">
               <FiPhone className="absolute left-3 top-3 text-gray-400" />
               <input
+                maxLength={LIMITS.phone}
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="+994 50 000 00 00"
@@ -338,6 +345,7 @@ export default function Profile() {
             <div className="relative">
               <FiMapPin className="absolute left-3 top-3 text-gray-400" />
               <input
+                maxLength={LIMITS.region}
                 value={form.region}
                 onChange={(e) => setForm({ ...form, region: e.target.value })}
                 className="input pl-10"
@@ -347,6 +355,7 @@ export default function Profile() {
           <div>
             <label className="label">Haqqında</label>
             <textarea
+              maxLength={LIMITS.bio}
               value={form.bio}
               onChange={(e) => setForm({ ...form, bio: e.target.value })}
               className="input min-h-[100px]"

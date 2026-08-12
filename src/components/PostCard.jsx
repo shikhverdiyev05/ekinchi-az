@@ -10,6 +10,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import API from "../api";
 import { timeAgo } from "../utils/constants";
+import { LIMITS, safeImageUrl, safeImageUrls } from "../utils/security";
 
 export default function PostCard({ post, onDelete }) {
   const { user } = useAuth();
@@ -90,6 +91,7 @@ export default function PostCard({ post, onDelete }) {
     } catch (e) {}
   };
 
+  const images = safeImageUrls(post.images);
   const author = post.author;
   const authorName = author?.fullName || "İstifadeci";
   const isMyPost = author?.id === user?.id;
@@ -98,8 +100,12 @@ export default function PostCard({ post, onDelete }) {
     <div className="card p-3 sm:p-4 mb-4">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold overflow-hidden shrink-0">
-          {author?.avatar ? (
-            <img src={author.avatar} alt="" className="w-full h-full object-cover" />
+          {safeImageUrl(author?.avatar) ? (
+            <img
+              src={safeImageUrl(author.avatar)}
+              alt=""
+              className="w-full h-full object-cover"
+            />
           ) : (
             authorName.charAt(0).toUpperCase()
           )}
@@ -131,22 +137,20 @@ export default function PostCard({ post, onDelete }) {
         {post.content}
       </p>
 
-      {post.images?.length > 0 && (
+      {images.length > 0 && (
         <div
           className={`mt-3 grid gap-2 ${
-            post.images.length === 1
-              ? "grid-cols-1"
-              : "grid-cols-2"
+            images.length === 1 ? "grid-cols-1" : "grid-cols-2"
           }`}
         >
-          {post.images.map((img, i) => (
+          {images.map((img, i) => (
             <img
               key={i}
               src={img}
               alt=""
               loading="lazy"
               className={`rounded-lg w-full object-cover ${
-                post.images.length === 1 ? "max-h-[500px]" : "max-h-72"
+                images.length === 1 ? "max-h-[500px]" : "max-h-72"
               }`}
             />
           ))}
@@ -216,6 +220,7 @@ export default function PostCard({ post, onDelete }) {
           {user && (
             <form onSubmit={submitComment} className="flex gap-2">
               <input
+                maxLength={LIMITS.comment}
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Şərh yaz..."
