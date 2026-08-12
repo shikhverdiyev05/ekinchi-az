@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { FiMapPin, FiTag } from "react-icons/fi";
 import { categoryName, timeAgo } from "../utils/constants";
+import { safeImageUrl } from "../utils/security";
 import Avatar from "./Avatar";
 import ListingPrice from "./ListingPrice";
 import TypeBadge from "./TypeBadge";
@@ -11,9 +12,9 @@ export default function ListingCard({ listing }) {
   return (
     <Link to={`/listings/${listing.id}`} className="card overflow-hidden group block">
       <div className="aspect-[4/3] bg-gradient-to-br from-brand-100 to-brand-50 relative flex items-center justify-center overflow-hidden">
-        {listing.images?.[0] ? (
+        {safeImageUrl(listing.images?.[0]) ? (
           <img
-            src={listing.images[0]}
+            src={safeImageUrl(listing.images[0])}
             alt={listing.title}
             loading="lazy"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

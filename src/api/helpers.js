@@ -4,8 +4,17 @@ import {
   write,
   addDeleted,
   getDeletedSet,
+  mergeDeleted,
   STORAGE_KEYS,
 } from "../utils/store";
+import {
+  forbidden,
+  randomToken,
+  unauthorized,
+  LIMITS,
+  safeImageUrls,
+  sanitizeText,
+} from "../utils/security";
 
 export function httpError(message, status) {
   const e = new Error(message);
@@ -13,16 +22,26 @@ export function httpError(message, status) {
   return e;
 }
 
-export function withoutPassword(user) {
+export function notFound() {
+  return httpError("Not found", 404);
+}
+
+export function publicUser(user) {
   if (!user) return user;
-  const { password: _password, ...safe } = user;
+  const { password: _p, passwordHash: _h, passwordSalt: _s, ...safe } = user;
   return safe;
 }
 
 export function persistCurrentUser(user) {
-  const safe = withoutPassword(user);
+  const safe = publicUser(user);
   write(STORAGE_KEYS.currentUser, safe);
   return safe;
+}
+
+export function startSession(user) {
+  const token = randomToken();
+  write(STORAGE_KEYS.token, token);
+  return { token, user: persistCurrentUser(user) };
 }
 
 export async function fetchCollection(path, fallback = []) {
@@ -32,12 +51,22 @@ export async function fetchCollection(path, fallback = []) {
 
 export function requireCurrentUser() {
   const current = read(STORAGE_KEYS.currentUser);
-  if (!current) throw httpError("auth", 401);
+  if (!current) throw unauthorized();
   return current;
 }
 
+export function ownerIdOf(item) {
+  return item?.owner?.id ?? item?.author?.id ?? item?.userId ?? null;
+}
+
+export function requireOwnership(item, current) {
+  const owner = ownerIdOf(item);
+  if (!owner || owner !== current.id) throw forbidden();
+  return item;
+}
+
 export function notDeleted(items, deletedSet = getDeletedSet()) {
-  return (items || []).filter((x) => !deletedSet.has(x.id));
+  return mergeDeleted(items || [], deletedSet);
 }
 
 export async function mergedCollection(path, localKey) {
@@ -84,3 +113,22 @@ export function newestFirst(a, b) {
 export function readIdSet(localKey) {
   return new Set(read(localKey, []));
 }
+
+export function sanitizedFields(data, fields) {
+  const out = {};
+  for (const [key, limit] of Object.entries(fields)) {
+    if (key in data) out[key] = sanitizeText(data[key], limit);
+  }
+  return out;
+}
+
+export function safeAvatar(value) {
+  return safeImageUrls([value])[0] || "";
+}
+
+export const PROFILE_FIELDS = {
+  fullName: LIMITS.name,
+  phone: LIMITS.phone,
+  region: LIMITS.region,
+  bio: LIMITS.bio,
+};

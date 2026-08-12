@@ -12,6 +12,7 @@ import EmptyState from "../components/EmptyState";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
 import { formatPrice, formatDate } from "../utils/constants";
+import { LIMITS } from "../utils/security";
 import {
   FiList,
   FiMessageSquare,
@@ -295,6 +296,7 @@ export default function Profile() {
             <label className="label">Ad Soyad</label>
             <input
               required
+              maxLength={LIMITS.name}
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               className="input"
@@ -313,6 +315,7 @@ export default function Profile() {
             <label className="label">Telefon</label>
             <IconField icon={FiPhone}>
               <input
+                maxLength={LIMITS.phone}
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="+994 50 000 00 00"
@@ -324,6 +327,7 @@ export default function Profile() {
             <label className="label">Region</label>
             <IconField icon={FiMapPin}>
               <input
+                maxLength={LIMITS.region}
                 value={form.region}
                 onChange={(e) => setForm({ ...form, region: e.target.value })}
                 className="input pl-10"
@@ -333,6 +337,7 @@ export default function Profile() {
           <div>
             <label className="label">Haqqında</label>
             <textarea
+              maxLength={LIMITS.bio}
               value={form.bio}
               onChange={(e) => setForm({ ...form, bio: e.target.value })}
               className="input min-h-[100px]"

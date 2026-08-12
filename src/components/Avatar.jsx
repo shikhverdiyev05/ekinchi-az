@@ -1,3 +1,5 @@
+import { safeImageUrl } from "../utils/security";
+
 export default function Avatar({
   name,
   src,
@@ -5,12 +7,13 @@ export default function Avatar({
   bgClassName = "bg-brand-600",
   fallback = "?",
 }) {
+  const image = safeImageUrl(src);
   return (
     <div
       className={`rounded-full ${bgClassName} text-white flex items-center justify-center overflow-hidden shrink-0 ${className}`}
     >
-      {src ? (
-        <img src={src} alt="" className="w-full h-full object-cover" />
+      {image ? (
+        <img src={image} alt="" className="w-full h-full object-cover" />
       ) : (
         name?.charAt(0).toUpperCase() || fallback
       )}

@@ -4,8 +4,9 @@ import { useAuth } from "../context/AuthContext";
 import ErrorAlert from "../components/ErrorAlert";
 import IconField from "../components/IconField";
 import { FiMail, FiLock, FiInfo } from "react-icons/fi";
+import { DEMO_EMAIL, DEMO_PASSWORD } from "../utils/security";
 
-const DEMO = { email: "elvin.memmedov@example.com", password: "demo123" };
+const DEMO = { email: DEMO_EMAIL, password: DEMO_PASSWORD };
 
 export default function Login() {
   const { login } = useAuth();

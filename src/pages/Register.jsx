@@ -5,6 +5,7 @@ import { FiMail, FiLock, FiUser, FiPhone, FiMapPin } from "react-icons/fi";
 import ErrorAlert from "../components/ErrorAlert";
 import IconField from "../components/IconField";
 import { REGIONS } from "../utils/constants";
+import { LIMITS } from "../utils/security";
 
 export default function Register() {
   const { register } = useAuth();
@@ -53,6 +54,7 @@ export default function Register() {
             <IconField icon={FiUser}>
               <input
                 required
+                maxLength={LIMITS.name}
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                 placeholder="Ad Soyad"
@@ -91,6 +93,7 @@ export default function Register() {
             <label className="label">Telefon</label>
             <IconField icon={FiPhone}>
               <input
+                maxLength={LIMITS.phone}
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="+994 50 000 00 00"

@@ -1,83 +1,136 @@
 import { read, write, genId, addDeleted, STORAGE_KEYS } from "../utils/store";
 import { listingOwnerId } from "../utils/constants";
 import {
+  DEMO_EMAIL,
+  DEMO_PASSWORD,
+  LIMITS,
+  hashPassword,
+  safeImageUrls,
+  sanitizeText,
+  verifyPassword,
+} from "../utils/security";
+import {
+  PROFILE_FIELDS,
   fetchCollection,
   httpError,
   mergedCollection,
   newestFirst,
   notDeleted,
+  notFound,
   persistCurrentUser,
+  publicUser,
   pushLocal,
   readIdSet,
   removeLocal,
   requireCurrentUser,
+  requireOwnership,
+  safeAvatar,
+  sanitizedFields,
+  startSession,
   toggleInList,
   updateLocal,
 } from "./helpers";
 
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function findByEmail(users, email) {
+  return users.find((u) => normalizeEmail(u.email) === email);
+}
+
+function invalidCredentials() {
+  return httpError("Email və ya şifrə yanlışdır", 401);
+}
+
+function listingPayload(data = {}) {
+  return {
+    title: sanitizeText(data.title, LIMITS.title),
+    description: sanitizeText(data.description, LIMITS.description),
+    type: data.type === "rent" ? "rent" : "sale",
+    category: sanitizeText(data.category, LIMITS.name),
+    subcategory: data.subcategory ? sanitizeText(data.subcategory, LIMITS.name) : null,
+    price: Number.isFinite(Number(data.price)) ? Math.max(0, Number(data.price)) : 0,
+    currency: ["AZN", "USD", "EUR"].includes(data.currency) ? data.currency : "AZN",
+    priceUnit: data.priceUnit ? sanitizeText(data.priceUnit, LIMITS.name) : null,
+    region: sanitizeText(data.region, LIMITS.region),
+    images: safeImageUrls(data.images),
+  };
+}
+
+/** Resolves an item that may live locally or on the mock server, enforcing ownership. */
+async function ownedItem(id, localKey, path, current) {
+  const local = read(localKey, []);
+  const owned = local.find((x) => x.id === id);
+  if (owned) return { item: requireOwnership(owned, current), isLocal: true };
+  const remote = (await fetchCollection(path)).find((x) => x.id === id);
+  if (!remote) throw notFound();
+  return { item: requireOwnership(remote, current), isLocal: false };
+}
+
 const API = {
   auth: {
     async login(email, password) {
-      const serverUsers = await fetchCollection("/users");
-      const localUsers = read(STORAGE_KEYS.localUsers, []);
-      // Demo user-ə default password təyin edirik (server user-lərində password yoxdur)
-      const DEMO_PW = "demo123";
-      const serverWithPw = serverUsers.map((u) => ({
-        ...u,
-        password: u.password || DEMO_PW,
-      }));
-      const allUsers = [
-        ...serverWithPw,
-        ...localUsers.filter((u) => !serverUsers.some((x) => x.id === u.id)),
-      ];
-      const found = allUsers.find(
-        (u) => u.email === email && u.password === password
-      );
-      if (!found) throw httpError("Email və ya şifrə yanlışdır", 401);
-      const token = genId("tok");
-      write(STORAGE_KEYS.token, token);
-      return { token, user: persistCurrentUser(found) };
+      const normalizedEmail = normalizeEmail(email);
+
+      const local = findByEmail(read(STORAGE_KEYS.localUsers, []), normalizedEmail);
+      if (local) {
+        const ok = await verifyPassword(password, local.passwordSalt, local.passwordHash);
+        if (!ok) throw invalidCredentials();
+        return startSession(local);
+      }
+
+      // Mock backend has no credential store; only the documented demo account
+      // can be signed into, and never with another user's identity.
+      if (normalizedEmail !== DEMO_EMAIL || password !== DEMO_PASSWORD) {
+        throw invalidCredentials();
+      }
+      const demo = findByEmail(await fetchCollection("/users"), DEMO_EMAIL);
+      if (!demo) throw invalidCredentials();
+      return startSession(demo);
     },
 
     async register(data) {
-      const serverUsers = await fetchCollection("/users");
+      const email = normalizeEmail(data.email);
+      const password = String(data.password || "");
+      if (!email || password.length < 6) {
+        throw httpError("Email və ən azı 6 simvollu şifrə tələb olunur", 400);
+      }
       const localUsers = read(STORAGE_KEYS.localUsers, []);
-      const all = [...serverUsers, ...localUsers];
-      if (all.some((u) => u.email === data.email)) {
+      const all = [...(await fetchCollection("/users")), ...localUsers];
+      if (findByEmail(all, email)) {
         throw httpError("Bu email artıq istifade olunur", 409);
       }
-      const user = pushLocal(STORAGE_KEYS.localUsers, {
-        id: data.id || genId("usr"),
-        fullName: data.fullName,
-        email: data.email,
-        password: data.password,
-        phone: data.phone || "",
-        avatar: data.avatar || "",
-        region: data.region || "",
+      const { salt, hash } = await hashPassword(password);
+      const user = {
+        id: genId("usr"),
+        email,
+        passwordSalt: salt,
+        passwordHash: hash,
+        ...sanitizedFields(
+          { fullName: data.fullName, phone: data.phone, region: data.region, bio: data.bio },
+          PROFILE_FIELDS
+        ),
+        avatar: safeAvatar(data.avatar),
         balance: 0,
-        bio: data.bio || "",
         createdAt: new Date().toISOString(),
-      });
-      const token = genId("tok");
-      write(STORAGE_KEYS.token, token);
-      return { token, user: persistCurrentUser(user) };
+      };
+      pushLocal(STORAGE_KEYS.localUsers, user);
+      return startSession(user);
     },
 
     async getMe() {
       const current = requireCurrentUser();
-      const localUsers = read(STORAGE_KEYS.localUsers, []);
-      const updated = localUsers.find((u) => u.id === current.id);
-      if (updated) return { user: persistCurrentUser(updated) };
-      return { user: current };
+      const updated = read(STORAGE_KEYS.localUsers, []).find((u) => u.id === current.id);
+      return { user: updated ? persistCurrentUser(updated) : publicUser(current) };
     },
 
     async updateProfile(data) {
       const current = requireCurrentUser();
-      const updated = updateLocal(STORAGE_KEYS.localUsers, current.id, data);
-      if (updated) return { user: persistCurrentUser(updated) };
-      const merged = { ...current, ...data };
-      write(STORAGE_KEYS.currentUser, merged);
-      return { user: merged };
+      const patch = sanitizedFields(data, PROFILE_FIELDS);
+      if ("avatar" in data) patch.avatar = safeAvatar(data.avatar);
+      const updated = updateLocal(STORAGE_KEYS.localUsers, current.id, patch);
+      return { user: persistCurrentUser(updated || { ...current, ...patch }) };
     },
   },
 
@@ -105,31 +158,28 @@ const API = {
     },
 
     async get(id) {
-      const serverItems = await fetchCollection("/listings");
-      const all = [...read(STORAGE_KEYS.localListings, []), ...serverItems];
+      const all = [
+        ...read(STORAGE_KEYS.localListings, []),
+        ...(await fetchCollection("/listings")),
+      ];
       const listing = all.find((l) => l.id === id);
-      if (!listing) throw httpError("Not found", 404);
-      const usersRes = await fetchCollection("/users");
-      const allUsers = [...read(STORAGE_KEYS.localUsers, []), ...usersRes];
-      const ownerId = listingOwnerId(listing);
-      const owner = allUsers.find((u) => u.id === ownerId) || listing.owner;
-      return { listing, owner };
+      if (!listing) throw notFound();
+      const allUsers = [
+        ...read(STORAGE_KEYS.localUsers, []),
+        ...(await fetchCollection("/users")),
+      ];
+      const owner =
+        allUsers.find((u) => u.id === listingOwnerId(listing)) || listing.owner;
+      return { listing, owner: publicUser(owner) };
     },
 
     async create(data) {
       const current = requireCurrentUser();
+      const payload = listingPayload(data);
       const listing = pushLocal(STORAGE_KEYS.localListings, {
         id: genId("lst"),
-        title: data.title,
-        description: data.description || "",
-        type: data.type || "sale",
-        category: data.category || "",
-        subcategory: data.subcategory || null,
-        price: Number(data.price) || 0,
-        currency: data.currency || "AZN",
-        priceUnit: data.priceUnit || (data.type === "rent" ? "gün" : null),
-        region: data.region || "",
-        images: data.images || [],
+        ...payload,
+        priceUnit: payload.priceUnit || (payload.type === "rent" ? "gün" : null),
         owner: {
           id: current.id,
           fullName: current.fullName,
@@ -142,12 +192,32 @@ const API = {
     },
 
     async update(id, data) {
-      const updated = updateLocal(STORAGE_KEYS.localListings, id, data);
-      return { listing: updated || { id, ...data } };
+      const current = requireCurrentUser();
+      const { item, isLocal } = await ownedItem(
+        id,
+        STORAGE_KEYS.localListings,
+        "/listings",
+        current
+      );
+      const payload = listingPayload({ ...item, ...data });
+      if (isLocal) {
+        return { listing: updateLocal(STORAGE_KEYS.localListings, id, payload) };
+      }
+      const updated = pushLocal(STORAGE_KEYS.localListings, { ...item, ...payload });
+      addDeleted(id);
+      return { listing: updated };
     },
 
     async remove(id) {
-      removeLocal(STORAGE_KEYS.localListings, id);
+      const current = requireCurrentUser();
+      const { isLocal } = await ownedItem(
+        id,
+        STORAGE_KEYS.localListings,
+        "/listings",
+        current
+      );
+      if (isLocal) removeLocal(STORAGE_KEYS.localListings, id);
+      else addDeleted(id);
       return { success: true };
     },
   },
@@ -176,10 +246,10 @@ const API = {
         author: {
           id: current.id,
           fullName: current.fullName,
-          avatar: current.avatar || "",
+          avatar: safeAvatar(current.avatar),
         },
-        content: data.content || "",
-        images: data.images || [],
+        content: sanitizeText(data.content, LIMITS.postContent),
+        images: safeImageUrls(data.images),
         likesCount: 0,
         commentsCount: 0,
         isLikedByMe: false,
@@ -190,30 +260,43 @@ const API = {
     },
 
     async remove(id) {
-      removeLocal(STORAGE_KEYS.localPosts, id);
+      const current = requireCurrentUser();
+      const { isLocal } = await ownedItem(
+        id,
+        STORAGE_KEYS.localPosts,
+        "/posts",
+        current
+      );
+      if (isLocal) removeLocal(STORAGE_KEYS.localPosts, id);
+      else addDeleted(id);
       return { success: true };
     },
 
     async toggleLike(id) {
+      requireCurrentUser();
       return { liked: toggleInList(STORAGE_KEYS.likedPosts, id) };
     },
 
     async toggleSave(id) {
+      requireCurrentUser();
       return { saved: toggleInList(STORAGE_KEYS.savedPosts, id) };
     },
 
     async comments(postId) {
       const serverMap = await fetchCollection("/comments", {});
       const localMap = read(STORAGE_KEYS.localComments, {});
-      const all = [
-        ...(localMap[postId] || []),
-        ...notDeleted(serverMap[postId] || []),
-      ];
-      return { comments: all };
+      return {
+        comments: [
+          ...(localMap[postId] || []),
+          ...notDeleted(serverMap[postId] || []),
+        ],
+      };
     },
 
     async addComment(postId, content) {
       const current = requireCurrentUser();
+      const text = sanitizeText(content, LIMITS.comment);
+      if (!text) throw httpError("Şərh boş ola bilməz", 400);
       const comment = {
         id: genId("cmt"),
         postId,
@@ -221,7 +304,7 @@ const API = {
           id: current.id,
           fullName: current.fullName,
         },
-        text: content,
+        text,
         createdAt: new Date().toISOString(),
       };
       const localMap = read(STORAGE_KEYS.localComments, {});
@@ -231,11 +314,21 @@ const API = {
     },
 
     async deleteComment(commentId, postId) {
+      const current = requireCurrentUser();
       const localMap = read(STORAGE_KEYS.localComments, {});
-      localMap[postId] = (localMap[postId] || []).filter(
-        (c) => c.id !== commentId
-      );
-      write(STORAGE_KEYS.localComments, localMap);
+      const arr = localMap[postId] || [];
+      const owned = arr.find((c) => c.id === commentId);
+      if (owned) {
+        requireOwnership(owned, current);
+        localMap[postId] = arr.filter((c) => c.id !== commentId);
+        write(STORAGE_KEYS.localComments, localMap);
+        addDeleted(commentId);
+        return { success: true };
+      }
+      const serverMap = await fetchCollection("/comments", {});
+      const remote = (serverMap[postId] || []).find((c) => c.id === commentId);
+      if (!remote) throw notFound();
+      requireOwnership(remote, current);
       addDeleted(commentId);
       return { success: true };
     },
@@ -251,12 +344,10 @@ const API = {
     async list() {
       const current = requireCurrentUser();
       const serverItems = await fetchCollection("/basket");
-      const serverUserBasket = serverItems?.[current.id] || [];
       const localMap = read(STORAGE_KEYS.basket, {});
-      const localUserBasket = localMap[current.id] || [];
       const ids = new Set();
       const items = [];
-      for (const i of [...localUserBasket, ...serverUserBasket]) {
+      for (const i of [...(localMap[current.id] || []), ...(serverItems?.[current.id] || [])]) {
         if (ids.has(i.listingId)) continue;
         ids.add(i.listingId);
         items.push(i);
@@ -275,24 +366,24 @@ const API = {
       const localMap = read(STORAGE_KEYS.basket, {});
       const arr = localMap[current.id] || [];
       if (!arr.some((i) => i.listingId === listingId)) {
-        arr.push({ listingId, addedAt: new Date().toISOString() });
-        localMap[current.id] = arr;
+        localMap[current.id] = [...arr, { listingId, addedAt: new Date().toISOString() }];
         write(STORAGE_KEYS.basket, localMap);
       }
       return { success: true };
     },
 
     async remove(listingId) {
-      const current = read(STORAGE_KEYS.currentUser);
+      const current = requireCurrentUser();
       const localMap = read(STORAGE_KEYS.basket, {});
-      const arr = localMap[current.id] || [];
-      localMap[current.id] = arr.filter((i) => i.listingId !== listingId);
+      localMap[current.id] = (localMap[current.id] || []).filter(
+        (i) => i.listingId !== listingId
+      );
       write(STORAGE_KEYS.basket, localMap);
       return { success: true };
     },
 
     async clear() {
-      const current = read(STORAGE_KEYS.currentUser);
+      const current = requireCurrentUser();
       const localMap = read(STORAGE_KEYS.basket, {});
       localMap[current.id] = [];
       write(STORAGE_KEYS.basket, localMap);
@@ -303,10 +394,9 @@ const API = {
   orders: {
     async list() {
       const current = requireCurrentUser();
-      const serverListings = await fetchCollection("/listings");
       const allListings = [
         ...read(STORAGE_KEYS.localListings, []),
-        ...serverListings,
+        ...(await fetchCollection("/listings")),
       ];
       const orders = read(STORAGE_KEYS.orders, [])
         .filter((o) => o.userId === current.id)
