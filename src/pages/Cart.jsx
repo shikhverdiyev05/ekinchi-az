@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import API from "../api";
 import { useAuth } from "../context/AuthContext";
 import { formatPrice } from "../utils/constants";
+import { safeImageUrl } from "../utils/security";
 import Spinner from "../components/Spinner";
 import EmptyState from "../components/EmptyState";
 import { useToast } from "../hooks/useToast";
@@ -102,9 +103,9 @@ export default function Cart() {
                   to={`/listings/${item.listingId}`}
                   className="w-16 h-16 rounded-lg bg-brand-100 flex items-center justify-center text-2xl shrink-0 overflow-hidden"
                 >
-                  {item.listing?.images?.[0] ? (
+                  {safeImageUrl(item.listing?.images?.[0]) ? (
                     <img
-                      src={item.listing.images[0]}
+                      src={safeImageUrl(item.listing.images[0])}
                       alt=""
                       className="w-full h-full object-cover"
                     />

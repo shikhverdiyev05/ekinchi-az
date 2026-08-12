@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { FiMail, FiLock, FiAlertCircle, FiInfo } from "react-icons/fi";
+import { DEMO_EMAIL, DEMO_PASSWORD } from "../utils/security";
 
-const DEMO = { email: "elvin.memmedov@example.com", password: "demo123" };
+const DEMO = { email: DEMO_EMAIL, password: DEMO_PASSWORD };
 
 export default function Login() {
   const { login } = useAuth();

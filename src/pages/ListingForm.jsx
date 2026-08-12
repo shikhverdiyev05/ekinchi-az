@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import API from "../api";
 import { useAuth } from "../context/AuthContext";
 import { CATEGORIES, REGIONS } from "../utils/constants";
+import { LIMITS } from "../utils/security";
 import Spinner from "../components/Spinner";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
@@ -93,6 +94,7 @@ export default function ListingForm() {
           <label className="label">Başlıq</label>
           <input
             required
+            maxLength={LIMITS.title}
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
             placeholder="Məs: 50 sot torpaq satılır"
@@ -209,6 +211,7 @@ export default function ListingForm() {
         <div>
           <label className="label">Təsvir</label>
           <textarea
+            maxLength={LIMITS.description}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             className="input min-h-[120px]"

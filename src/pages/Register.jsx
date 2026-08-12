@@ -10,6 +10,7 @@ import {
   FiMapPin,
 } from "react-icons/fi";
 import { REGIONS } from "../utils/constants";
+import { LIMITS } from "../utils/security";
 
 export default function Register() {
   const { register } = useAuth();
@@ -63,6 +64,7 @@ export default function Register() {
               <FiUser className="absolute left-3 top-3 text-gray-400" />
               <input
                 required
+                maxLength={LIMITS.name}
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                 placeholder="Ad Soyad"
@@ -104,6 +106,7 @@ export default function Register() {
             <div className="relative">
               <FiPhone className="absolute left-3 top-3 text-gray-400" />
               <input
+                maxLength={LIMITS.phone}
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="+994 50 000 00 00"
