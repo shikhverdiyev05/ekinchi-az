@@ -1,11 +1,9 @@
 import { Link } from "react-router-dom";
 import { FiMapPin, FiTag } from "react-icons/fi";
-import {
-  categoryName,
-  formatPrice,
-  listingTypeLabel,
-  timeAgo,
-} from "../utils/constants";
+import { categoryName, timeAgo } from "../utils/constants";
+import Avatar from "./Avatar";
+import ListingPrice from "./ListingPrice";
+import TypeBadge from "./TypeBadge";
 
 export default function ListingCard({ listing }) {
   if (!listing) return null;
@@ -23,15 +21,7 @@ export default function ListingCard({ listing }) {
         ) : (
           <div className="text-6xl text-brand-300">🌾</div>
         )}
-        <span
-          className={`absolute top-2 left-2 badge ${
-            listing.type === "rent"
-              ? "bg-blue-100 text-blue-700"
-              : "bg-brand-100 text-brand-700"
-          }`}
-        >
-          {listingTypeLabel(listing.type)}
-        </span>
+        <TypeBadge type={listing.type} className="absolute top-2 left-2" />
       </div>
       <div className="p-3 sm:p-4">
         <h3 className="font-semibold text-gray-900 group-hover:text-brand-700 transition-colors line-clamp-1 text-sm sm:text-base">
@@ -41,14 +31,10 @@ export default function ListingCard({ listing }) {
           {listing.description}
         </p>
         <div className="flex items-center justify-between mt-3">
-          <div className="text-brand-700 font-bold text-sm sm:text-base">
-            {formatPrice(listing.price, listing.currency)}
-            {listing.type === "rent" && (
-              <span className="text-xs text-gray-500 font-normal">
-                /{listing.priceUnit || "gün"}
-              </span>
-            )}
-          </div>
+          <ListingPrice
+            listing={listing}
+            className="text-brand-700 font-bold text-sm sm:text-base"
+          />
           <div className="text-xs text-gray-500 flex items-center gap-1">
             <FiTag /> {categoryName(listing.category)}
           </div>
@@ -60,9 +46,7 @@ export default function ListingCard({ listing }) {
           <span className="shrink-0">{timeAgo(listing.createdAt)}</span>
         </div>
         <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-brand-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-            {ownerName?.charAt(0).toUpperCase()}
-          </div>
+          <Avatar name={ownerName} className="w-6 h-6 text-[10px] font-bold" />
           <span className="truncate">{ownerName}</span>
         </div>
       </div>

@@ -6,13 +6,12 @@ import {
 } from "react-router-dom";
 import API from "../api";
 import { useAuth } from "../context/AuthContext";
-import {
-  formatPrice,
-  listingTypeLabel,
-  categoryName,
-  formatDate,
-} from "../utils/constants";
+import { categoryName, formatDate, listingOwnerId } from "../utils/constants";
 import Spinner from "../components/Spinner";
+import Avatar from "../components/Avatar";
+import BackButton from "../components/BackButton";
+import ListingPrice from "../components/ListingPrice";
+import TypeBadge from "../components/TypeBadge";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
 import {
@@ -23,7 +22,6 @@ import {
   FiEdit,
   FiTrash2,
   FiAlertCircle,
-  FiChevronLeft,
   FiCheck,
 } from "react-icons/fi";
 
@@ -52,8 +50,7 @@ export default function ListingDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const ownerId = listing?.owner?.id || listing?.userId;
-  const isOwner = user?.id === ownerId;
+  const isOwner = user?.id === listingOwnerId(listing);
   const isSale = listing?.type === "sale";
 
   const addToCart = async () => {
@@ -113,12 +110,7 @@ export default function ListingDetail() {
 
   return (
     <div>
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-4 text-sm text-gray-600 hover:text-brand-700 flex items-center gap-1"
-      >
-        <FiChevronLeft /> Geri
-      </button>
+      <BackButton />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2">
@@ -154,15 +146,7 @@ export default function ListingDetail() {
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
                   {listing.title}
                 </h1>
-                <span
-                  className={`badge ${
-                    isSale
-                      ? "bg-brand-100 text-brand-700"
-                      : "bg-blue-100 text-blue-700"
-                  }`}
-                >
-                  {listingTypeLabel(listing.type)}
-                </span>
+                <TypeBadge type={listing.type} />
               </div>
 
               <div className="flex items-center gap-3 flex-wrap text-sm text-gray-500 mb-4">
@@ -203,14 +187,11 @@ export default function ListingDetail() {
 
         <div className="lg:col-span-1">
           <div className="card p-5 sm:p-6 sticky top-32">
-            <div className="text-2xl sm:text-3xl font-bold text-brand-700 mb-1">
-              {formatPrice(listing.price, listing.currency)}
-              {listing.type === "rent" && (
-                <span className="text-sm text-gray-500 font-normal">
-                  /{listing.priceUnit || "gün"}
-                </span>
-              )}
-            </div>
+            <ListingPrice
+              listing={listing}
+              className="text-2xl sm:text-3xl font-bold text-brand-700 mb-1"
+              unitClassName="text-sm"
+            />
             <div className="text-sm text-gray-500 mb-5">
               {isSale ? "Satış qiyməti" : "İcarə qiyməti"}
             </div>
@@ -280,17 +261,11 @@ export default function ListingDetail() {
               <div className="mt-5 pt-5 border-t border-gray-100">
                 <h3 className="font-semibold text-gray-800 mb-3">Elan sahibi</h3>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold overflow-hidden">
-                    {owner.avatar ? (
-                      <img
-                        src={owner.avatar}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      owner.fullName?.charAt(0).toUpperCase()
-                    )}
-                  </div>
+                  <Avatar
+                    name={owner.fullName}
+                    src={owner.avatar}
+                    className="w-12 h-12 font-bold"
+                  />
                   <div className="min-w-0">
                     <div className="font-medium text-gray-900 truncate">
                       {owner.fullName}

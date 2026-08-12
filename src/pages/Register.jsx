@@ -1,14 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import {
-  FiMail,
-  FiLock,
-  FiUser,
-  FiPhone,
-  FiAlertCircle,
-  FiMapPin,
-} from "react-icons/fi";
+import { FiMail, FiLock, FiUser, FiPhone, FiMapPin } from "react-icons/fi";
+import ErrorAlert from "../components/ErrorAlert";
+import IconField from "../components/IconField";
 import { REGIONS } from "../utils/constants";
 
 export default function Register() {
@@ -50,17 +45,12 @@ export default function Register() {
         </h1>
         <p className="text-sm text-gray-500 text-center mb-6">Yeni hesab yaradın</p>
 
-        {error && (
-          <div className="mb-4 flex items-center gap-2 bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
-            <FiAlertCircle /> {error}
-          </div>
-        )}
+        <ErrorAlert message={error} />
 
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="label">Ad Soyad</label>
-            <div className="relative">
-              <FiUser className="absolute left-3 top-3 text-gray-400" />
+            <IconField icon={FiUser}>
               <input
                 required
                 value={form.fullName}
@@ -68,12 +58,11 @@ export default function Register() {
                 placeholder="Ad Soyad"
                 className="input pl-10"
               />
-            </div>
+            </IconField>
           </div>
           <div>
             <label className="label">Email</label>
-            <div className="relative">
-              <FiMail className="absolute left-3 top-3 text-gray-400" />
+            <IconField icon={FiMail}>
               <input
                 type="email"
                 required
@@ -82,12 +71,11 @@ export default function Register() {
                 placeholder="name@example.com"
                 className="input pl-10"
               />
-            </div>
+            </IconField>
           </div>
           <div>
             <label className="label">Şifrə</label>
-            <div className="relative">
-              <FiLock className="absolute left-3 top-3 text-gray-400" />
+            <IconField icon={FiLock}>
               <input
                 type="password"
                 required
@@ -97,24 +85,22 @@ export default function Register() {
                 placeholder="ən az 6 simvol"
                 className="input pl-10"
               />
-            </div>
+            </IconField>
           </div>
           <div>
             <label className="label">Telefon</label>
-            <div className="relative">
-              <FiPhone className="absolute left-3 top-3 text-gray-400" />
+            <IconField icon={FiPhone}>
               <input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="+994 50 000 00 00"
                 className="input pl-10"
               />
-            </div>
+            </IconField>
           </div>
           <div>
             <label className="label">Region</label>
-            <div className="relative">
-              <FiMapPin className="absolute left-3 top-3 text-gray-400" />
+            <IconField icon={FiMapPin}>
               <select
                 value={form.region}
                 onChange={(e) => setForm({ ...form, region: e.target.value })}
@@ -127,7 +113,7 @@ export default function Register() {
                   </option>
                 ))}
               </select>
-            </div>
+            </IconField>
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? "Yaradılır..." : "Qeydiyyatdan keç"}

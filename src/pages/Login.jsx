@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { FiMail, FiLock, FiAlertCircle, FiInfo } from "react-icons/fi";
+import ErrorAlert from "../components/ErrorAlert";
+import IconField from "../components/IconField";
+import { FiMail, FiLock, FiInfo } from "react-icons/fi";
 
 const DEMO = { email: "elvin.memmedov@example.com", password: "demo123" };
 
@@ -36,17 +38,12 @@ export default function Login() {
           AqrarBazar hesabınıza daxil olun
         </p>
 
-        {error && (
-          <div className="mb-4 flex items-center gap-2 bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
-            <FiAlertCircle /> {error}
-          </div>
-        )}
+        <ErrorAlert message={error} />
 
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="label">Email</label>
-            <div className="relative">
-              <FiMail className="absolute left-3 top-3 text-gray-400" />
+            <IconField icon={FiMail}>
               <input
                 type="email"
                 required
@@ -55,12 +52,11 @@ export default function Login() {
                 placeholder="name@example.com"
                 className="input pl-10"
               />
-            </div>
+            </IconField>
           </div>
           <div>
             <label className="label">Şifrə</label>
-            <div className="relative">
-              <FiLock className="absolute left-3 top-3 text-gray-400" />
+            <IconField icon={FiLock}>
               <input
                 type="password"
                 required
@@ -69,7 +65,7 @@ export default function Login() {
                 placeholder="••••••••"
                 className="input pl-10"
               />
-            </div>
+            </IconField>
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? "Giriş edilir..." : "Daxil ol"}

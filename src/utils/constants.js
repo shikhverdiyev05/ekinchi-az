@@ -63,6 +63,14 @@ export function listingTypeLabel(type) {
   return "Satış";
 }
 
+export function listingOwnerId(listing) {
+  return listing?.owner?.id || listing?.userId;
+}
+
+export function listingPriceUnit(listing) {
+  return listing?.priceUnit || "gün";
+}
+
 export function categoryById(id) {
   return CATEGORIES.find((c) => c.id === id);
 }

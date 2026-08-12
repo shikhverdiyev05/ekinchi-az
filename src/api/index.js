@@ -1,35 +1,19 @@
-import api from "./axios";
-import { read, write, genId, getDeletedSet, addDeleted } from "../utils/store";
-import { STORAGE_KEYS } from "../utils/store";
-
-async function fetchCollection(path, fallback = []) {
-  const res = await api.get(path);
-  return res.data ?? fallback;
-}
-
-function withLocal(serverItems, localKey, deleted = null) {
-  const deletedSet = deleted === null ? getDeletedSet() : deleted;
-  const local = read(localKey, []);
-  let filtered = (serverItems || []).filter((x) => !deletedSet.has(x.id));
-  return [...local, ...filtered];
-}
-
-function withLocalDict(serverDict, localKey) {
-  const deletedSet = getDeletedSet();
-  const local = read(localKey, {});
-  const out = {};
-  for (const k of Object.keys(serverDict || {})) {
-    out[k] = (serverDict[k] || []).filter((x) => !deletedSet.has(x.id));
-  }
-  for (const k of Object.keys(local)) {
-    out[k] = [...(local[k] || []), ...(out[k] || [])];
-  }
-  return out;
-}
-
-function loadLocal(key) {
-  return read(key, []);
-}
+import { read, write, genId, addDeleted, STORAGE_KEYS } from "../utils/store";
+import { listingOwnerId } from "../utils/constants";
+import {
+  fetchCollection,
+  httpError,
+  mergedCollection,
+  newestFirst,
+  notDeleted,
+  persistCurrentUser,
+  pushLocal,
+  readIdSet,
+  removeLocal,
+  requireCurrentUser,
+  toggleInList,
+  updateLocal,
+} from "./helpers";
 
 const API = {
   auth: {
@@ -49,16 +33,10 @@ const API = {
       const found = allUsers.find(
         (u) => u.email === email && u.password === password
       );
-      if (!found) {
-        const e = new Error("Email və ya şifrə yanlışdır");
-        e.response = { status: 401, data: { message: e.message } };
-        throw e;
-      }
-      const { password: p, ...safe } = found;
+      if (!found) throw httpError("Email və ya şifrə yanlışdır", 401);
       const token = genId("tok");
       write(STORAGE_KEYS.token, token);
-      write(STORAGE_KEYS.currentUser, safe);
-      return { token, user: safe };
+      return { token, user: persistCurrentUser(found) };
     },
 
     async register(data) {
@@ -66,11 +44,9 @@ const API = {
       const localUsers = read(STORAGE_KEYS.localUsers, []);
       const all = [...serverUsers, ...localUsers];
       if (all.some((u) => u.email === data.email)) {
-        const e = new Error("Bu email artıq istifade olunur");
-        e.response = { status: 409, data: { message: e.message } };
-        throw e;
+        throw httpError("Bu email artıq istifade olunur", 409);
       }
-      const user = {
+      const user = pushLocal(STORAGE_KEYS.localUsers, {
         id: data.id || genId("usr"),
         fullName: data.fullName,
         email: data.email,
@@ -81,58 +57,35 @@ const API = {
         balance: 0,
         bio: data.bio || "",
         createdAt: new Date().toISOString(),
-      };
-      localUsers.push(user);
-      write(STORAGE_KEYS.localUsers, localUsers);
-      const { password, ...safe } = user;
+      });
       const token = genId("tok");
       write(STORAGE_KEYS.token, token);
-      write(STORAGE_KEYS.currentUser, safe);
-      return { token, user: safe };
+      return { token, user: persistCurrentUser(user) };
     },
 
     async getMe() {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("Not authenticated");
-        e.response = { status: 401 };
-        throw e;
-      }
+      const current = requireCurrentUser();
       const localUsers = read(STORAGE_KEYS.localUsers, []);
       const updated = localUsers.find((u) => u.id === current.id);
-      if (updated) {
-        const { password, ...safe } = updated;
-        write(STORAGE_KEYS.currentUser, safe);
-        return { user: safe };
-      }
+      if (updated) return { user: persistCurrentUser(updated) };
       return { user: current };
     },
 
     async updateProfile(data) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) throw new Error("auth");
-      let localUsers = read(STORAGE_KEYS.localUsers, []);
-      const idx = localUsers.findIndex((u) => u.id === current.id);
-      if (idx >= 0) {
-        localUsers[idx] = { ...localUsers[idx], ...data };
-        write(STORAGE_KEYS.localUsers, localUsers);
-        const { password, ...safe } = localUsers[idx];
-        write(STORAGE_KEYS.currentUser, safe);
-        return { user: safe };
-      }
-      const updated = { ...current, ...data };
-      write(STORAGE_KEYS.currentUser, updated);
-      return { user: updated };
+      const current = requireCurrentUser();
+      const updated = updateLocal(STORAGE_KEYS.localUsers, current.id, data);
+      if (updated) return { user: persistCurrentUser(updated) };
+      const merged = { ...current, ...data };
+      write(STORAGE_KEYS.currentUser, merged);
+      return { user: merged };
     },
   },
 
   listings: {
     async list(params = {}) {
-      const serverItems = await fetchCollection("/listings");
-      const deleted = getDeletedSet();
-      let items = withLocal(serverItems, STORAGE_KEYS.localListings, deleted);
+      let items = await mergedCollection("/listings", STORAGE_KEYS.localListings);
       if (params.userId) {
-        items = items.filter((l) => (l.owner?.id || l.userId) === params.userId);
+        items = items.filter((l) => listingOwnerId(l) === params.userId);
       }
       if (params.type) items = items.filter((l) => l.type === params.type);
       if (params.category) {
@@ -153,30 +106,19 @@ const API = {
 
     async get(id) {
       const serverItems = await fetchCollection("/listings");
-      const local = read(STORAGE_KEYS.localListings, []);
-      const all = [...local, ...serverItems];
+      const all = [...read(STORAGE_KEYS.localListings, []), ...serverItems];
       const listing = all.find((l) => l.id === id);
-      if (!listing) {
-        const e = new Error("Not found");
-        e.response = { status: 404 };
-        throw e;
-      }
+      if (!listing) throw httpError("Not found", 404);
       const usersRes = await fetchCollection("/users");
-      const localUsers = read(STORAGE_KEYS.localUsers, []);
-      const allUsers = [...localUsers, ...usersRes];
-      const ownerId = listing.owner?.id || listing.userId;
+      const allUsers = [...read(STORAGE_KEYS.localUsers, []), ...usersRes];
+      const ownerId = listingOwnerId(listing);
       const owner = allUsers.find((u) => u.id === ownerId) || listing.owner;
       return { listing, owner };
     },
 
     async create(data) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
-        throw e;
-      }
-      const listing = {
+      const current = requireCurrentUser();
+      const listing = pushLocal(STORAGE_KEYS.localListings, {
         id: genId("lst"),
         title: data.title,
         description: data.description || "",
@@ -195,44 +137,26 @@ const API = {
         userId: current.id,
         status: "active",
         createdAt: new Date().toISOString(),
-      };
-      const local = read(STORAGE_KEYS.localListings, []);
-      local.push(listing);
-      write(STORAGE_KEYS.localListings, local);
+      });
       return { listing };
     },
 
     async update(id, data) {
-      const local = read(STORAGE_KEYS.localListings, []);
-      const idx = local.findIndex((l) => l.id === id);
-      if (idx >= 0) {
-        local[idx] = { ...local[idx], ...data };
-        write(STORAGE_KEYS.localListings, local);
-        return { listing: local[idx] };
-      }
-      return { listing: { id, ...data } };
+      const updated = updateLocal(STORAGE_KEYS.localListings, id, data);
+      return { listing: updated || { id, ...data } };
     },
 
     async remove(id) {
-      const local = read(STORAGE_KEYS.localListings, []);
-      const filtered = local.filter((l) => l.id !== id);
-      write(STORAGE_KEYS.localListings, filtered);
-      addDeleted(id);
+      removeLocal(STORAGE_KEYS.localListings, id);
       return { success: true };
     },
   },
 
   posts: {
     async list() {
-      const serverItems = await fetchCollection("/posts");
-      const deleted = getDeletedSet();
-      const local = read(STORAGE_KEYS.localPosts, []);
-      const likedIds = new Set(read(STORAGE_KEYS.likedPosts, []));
-      const savedIds = new Set(read(STORAGE_KEYS.savedPosts, []));
-      const serverFiltered = (serverItems || []).filter(
-        (p) => !deleted.has(p.id)
-      );
-      const all = [...local, ...serverFiltered];
+      const all = await mergedCollection("/posts", STORAGE_KEYS.localPosts);
+      const likedIds = readIdSet(STORAGE_KEYS.likedPosts);
+      const savedIds = readIdSet(STORAGE_KEYS.savedPosts);
       const enriched = all.map((p) => ({
         ...p,
         author: p.author || { id: p.userId, fullName: "İstifadeci" },
@@ -241,18 +165,13 @@ const API = {
         isLikedByMe: likedIds.has(p.id),
         isSavedByMe: savedIds.has(p.id),
       }));
-      enriched.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      enriched.sort(newestFirst);
       return { posts: enriched };
     },
 
     async create(data) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
-        throw e;
-      }
-      const post = {
+      const current = requireCurrentUser();
+      const post = pushLocal(STORAGE_KEYS.localPosts, {
         id: genId("post"),
         author: {
           id: current.id,
@@ -266,60 +185,35 @@ const API = {
         isLikedByMe: false,
         isSavedByMe: false,
         createdAt: new Date().toISOString(),
-      };
-      const local = read(STORAGE_KEYS.localPosts, []);
-      local.push(post);
-      write(STORAGE_KEYS.localPosts, local);
+      });
       return { post };
     },
 
     async remove(id) {
-      const local = read(STORAGE_KEYS.localPosts, []);
-      write(
-        STORAGE_KEYS.localPosts,
-        local.filter((p) => p.id !== id)
-      );
-      addDeleted(id);
+      removeLocal(STORAGE_KEYS.localPosts, id);
       return { success: true };
     },
 
     async toggleLike(id) {
-      let liked = read(STORAGE_KEYS.likedPosts, []);
-      const has = liked.includes(id);
-      if (has) liked = liked.filter((x) => x !== id);
-      else liked = [...liked, id];
-      write(STORAGE_KEYS.likedPosts, liked);
-      return { liked: !has };
+      return { liked: toggleInList(STORAGE_KEYS.likedPosts, id) };
     },
 
     async toggleSave(id) {
-      let saved = read(STORAGE_KEYS.savedPosts, []);
-      const has = saved.includes(id);
-      if (has) saved = saved.filter((x) => x !== id);
-      else saved = [...saved, id];
-      write(STORAGE_KEYS.savedPosts, saved);
-      return { saved: !has };
+      return { saved: toggleInList(STORAGE_KEYS.savedPosts, id) };
     },
 
     async comments(postId) {
       const serverMap = await fetchCollection("/comments", {});
       const localMap = read(STORAGE_KEYS.localComments, {});
-      const server = serverMap[postId] || [];
-      const deletedSet = getDeletedSet();
       const all = [
         ...(localMap[postId] || []),
-        ...server.filter((c) => !deletedSet.has(c.id)),
+        ...notDeleted(serverMap[postId] || []),
       ];
       return { comments: all };
     },
 
     async addComment(postId, content) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
-        throw e;
-      }
+      const current = requireCurrentUser();
       const comment = {
         id: genId("cmt"),
         postId,
@@ -331,41 +225,31 @@ const API = {
         createdAt: new Date().toISOString(),
       };
       const localMap = read(STORAGE_KEYS.localComments, {});
-      const arr = localMap[postId] || [];
-      arr.push(comment);
-      localMap[postId] = arr;
+      localMap[postId] = [...(localMap[postId] || []), comment];
       write(STORAGE_KEYS.localComments, localMap);
       return { comment };
     },
 
     async deleteComment(commentId, postId) {
       const localMap = read(STORAGE_KEYS.localComments, {});
-      const arr = localMap[postId] || [];
-      localMap[postId] = arr.filter((c) => c.id !== commentId);
+      localMap[postId] = (localMap[postId] || []).filter(
+        (c) => c.id !== commentId
+      );
       write(STORAGE_KEYS.localComments, localMap);
       addDeleted(commentId);
       return { success: true };
     },
 
     async saved() {
-      const serverItems = await fetchCollection("/posts");
-      const deleted = getDeletedSet();
-      const local = read(STORAGE_KEYS.localPosts, []);
-      const savedIds = new Set(read(STORAGE_KEYS.savedPosts, []));
-      const all = [...local, ...(serverItems || []).filter((p) => !deleted.has(p.id))];
-      const saved = all.filter((p) => savedIds.has(p.id));
-      return { posts: saved };
+      const all = await mergedCollection("/posts", STORAGE_KEYS.localPosts);
+      const savedIds = readIdSet(STORAGE_KEYS.savedPosts);
+      return { posts: all.filter((p) => savedIds.has(p.id)) };
     },
   },
 
   basket: {
     async list() {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
-        throw e;
-      }
+      const current = requireCurrentUser();
       const serverItems = await fetchCollection("/basket");
       const serverUserBasket = serverItems?.[current.id] || [];
       const localMap = read(STORAGE_KEYS.basket, {});
@@ -387,12 +271,7 @@ const API = {
     },
 
     async add(listingId) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
-        throw e;
-      }
+      const current = requireCurrentUser();
       const localMap = read(STORAGE_KEYS.basket, {});
       const arr = localMap[current.id] || [];
       if (!arr.some((i) => i.listingId === listingId)) {
@@ -423,34 +302,25 @@ const API = {
 
   orders: {
     async list() {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
-        throw e;
-      }
-      const all = read(STORAGE_KEYS.orders, []);
+      const current = requireCurrentUser();
       const serverListings = await fetchCollection("/listings");
-      const localListings = read(STORAGE_KEYS.localListings, []);
-      const allListings = [...localListings, ...serverListings];
-      const orders = all
+      const allListings = [
+        ...read(STORAGE_KEYS.localListings, []),
+        ...serverListings,
+      ];
+      const orders = read(STORAGE_KEYS.orders, [])
         .filter((o) => o.userId === current.id)
         .map((o) => ({
           ...o,
           listing: allListings.find((l) => l.id === o.listingId),
         }))
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        .sort(newestFirst);
       return { orders };
     },
 
     async createSale(payload) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
-        throw e;
-      }
-      const order = {
+      const current = requireCurrentUser();
+      const order = pushLocal(STORAGE_KEYS.orders, {
         id: genId("ord"),
         userId: current.id,
         type: "sale",
@@ -458,22 +328,14 @@ const API = {
         total: payload.total || 0,
         status: "pending",
         createdAt: new Date().toISOString(),
-      };
-      const all = read(STORAGE_KEYS.orders, []);
-      all.push(order);
-      write(STORAGE_KEYS.orders, all);
+      });
       await API.basket.clear();
       return { order };
     },
 
     async createRental(payload) {
-      const current = read(STORAGE_KEYS.currentUser);
-      if (!current) {
-        const e = new Error("auth");
-        e.response = { status: 401 };
-        throw e;
-      }
-      const order = {
+      const current = requireCurrentUser();
+      const order = pushLocal(STORAGE_KEYS.orders, {
         id: genId("ord"),
         userId: current.id,
         type: "rent",
@@ -483,18 +345,14 @@ const API = {
         notes: payload.notes || "",
         status: "pending",
         createdAt: new Date().toISOString(),
-      };
-      const all = read(STORAGE_KEYS.orders, []);
-      all.push(order);
-      write(STORAGE_KEYS.orders, all);
+      });
       return { order };
     },
   },
 
   categories: {
     async list() {
-      const items = await fetchCollection("/categories");
-      return { categories: items };
+      return { categories: await fetchCollection("/categories") };
     },
   },
 
