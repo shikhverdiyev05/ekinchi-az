@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   useNavigate,
   useParams,
@@ -14,6 +14,8 @@ import {
 } from "../utils/constants";
 import { safeImageUrl, safeImageUrls } from "../utils/security";
 import Spinner from "../components/Spinner";
+import ErrorState from "../components/ErrorState";
+import { describeError, statusOf } from "../utils/errors";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
 import {
@@ -32,27 +34,39 @@ export default function ListingDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast, show } = useToast();
+  const { toast, show, showError, hide } = useToast();
   const [listing, setListing] = useState(null);
   const [owner, setOwner] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [rental, setRental] = useState({ startDate: "", endDate: "", notes: "" });
   const [submitting, setSubmitting] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
   const images = safeImageUrls(listing?.images);
 
-  useEffect(() => {
+  const loadListing = useCallback(async () => {
     setLoading(true);
+    setLoadError("");
     setActiveImg(0);
-    API.listings
-      .get(id)
-      .then((res) => {
-        setListing(res.listing);
-        setOwner(res.owner);
-      })
-      .catch(() => setListing(null))
-      .finally(() => setLoading(false));
+    try {
+      const res = await API.listings.get(id);
+      setListing(res.listing);
+      setOwner(res.owner);
+    } catch (e) {
+      setListing(null);
+      setOwner(null);
+      // 404 "tapılmadı" ekranı ilə göstərilir, diğər xətalar açıq bildirilir.
+      if (statusOf(e) !== 404) {
+        setLoadError(describeError(`Elan yuklenmedi (${id})`, e));
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    loadListing();
+  }, [loadListing]);
 
   const ownerId = listing?.owner?.id || listing?.userId;
   const isOwner = user?.id === ownerId;
@@ -64,7 +78,7 @@ export default function ListingDetail() {
       await API.basket.add(listing.id);
       show("Səbətə əlavə edildi", "success");
     } catch (e) {
-      show("Xəta baş verdi", "error");
+      showError("Sebete elave edilmedi", e, "Səbətə əlavə edilmədi");
     }
   };
 
@@ -85,7 +99,7 @@ export default function ListingDetail() {
       setRental({ startDate: "", endDate: "", notes: "" });
       navigate("/profile?tab=orders");
     } catch (e) {
-      show("Xəta baş verdi", "error");
+      showError("Icare sifarisi yaradilmadi", e, "İcarə sifarişi yaradılmadı");
     } finally {
       setSubmitting(false);
     }
@@ -98,11 +112,13 @@ export default function ListingDetail() {
       show("Elan silindi", "success");
       navigate("/listings");
     } catch (e) {
-      show("Silinmədi", "error");
+      showError("Elan silinmedi", e, "Elan silinmədi");
     }
   };
 
   if (loading) return <Spinner />;
+  if (loadError)
+    return <ErrorState message={loadError} onRetry={loadListing} />;
   if (!listing)
     return (
       <div className="text-center py-16">
@@ -313,7 +329,7 @@ export default function ListingDetail() {
         </div>
       </div>
 
-      <Toast {...toast} onClose={() => {}} />
+      <Toast {...toast} onClose={hide} />
     </div>
   );
 }

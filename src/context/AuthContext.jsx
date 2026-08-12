@@ -1,12 +1,23 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import API from "../api";
-import { read, write, remove, STORAGE_KEYS } from "../utils/store";
+import { read, remove, STORAGE_KEYS } from "../utils/store";
+import { AppError, getErrorMessage, isAuthError, logError, statusOf } from "../utils/errors";
+
+function rethrow(context, error, fallback) {
+  logError(context, error);
+  throw new AppError(getErrorMessage(error, fallback), {
+    status: statusOf(error),
+    code: error?.code || null,
+    cause: error,
+  });
+}
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const bootstrap = useCallback(async () => {
     const token = read(STORAGE_KEYS.token);
@@ -17,10 +28,20 @@ export function AuthProvider({ children }) {
     try {
       const res = await API.auth.getMe();
       setUser(res.user);
+      setError("");
     } catch (e) {
-      remove(STORAGE_KEYS.token);
-      remove(STORAGE_KEYS.currentUser);
-      setUser(null);
+      logError("Sessiya berpa olunmadi", e);
+      // Yalniz autentifikasiya xetasinda sessiya silinir; sebeke xetasi
+      // istifadecini sistemden cixarmamalidir.
+      if (isAuthError(e)) {
+        remove(STORAGE_KEYS.token);
+        remove(STORAGE_KEYS.currentUser);
+        setUser(null);
+        setError("");
+      } else {
+        setUser(read(STORAGE_KEYS.currentUser));
+        setError(getErrorMessage(e, "Sessiya yoxlanıla bilmədi."));
+      }
     } finally {
       setLoading(false);
     }
@@ -34,10 +55,10 @@ export function AuthProvider({ children }) {
     try {
       const res = await API.auth.login(email, password);
       setUser(res.user);
+      setError("");
       return res.user;
     } catch (e) {
-      const msg = e.response?.data?.message || e.message || "Giriş uğursuz oldu";
-      throw new Error(msg);
+      rethrow("Giris ugursuz oldu", e, "Giriş uğursuz oldu");
     }
   }, []);
 
@@ -45,10 +66,10 @@ export function AuthProvider({ children }) {
     try {
       const res = await API.auth.register(data);
       setUser(res.user);
+      setError("");
       return res.user;
     } catch (e) {
-      const msg = e.response?.data?.message || e.message || "Qeydiyyat uğursuz oldu";
-      throw new Error(msg);
+      rethrow("Qeydiyyat ugursuz oldu", e, "Qeydiyyat uğursuz oldu");
     }
   }, []);
 
@@ -56,6 +77,7 @@ export function AuthProvider({ children }) {
     remove(STORAGE_KEYS.token);
     remove(STORAGE_KEYS.currentUser);
     setUser(null);
+    setError("");
   }, []);
 
   const updateProfile = useCallback(async (data) => {
@@ -64,14 +86,13 @@ export function AuthProvider({ children }) {
       setUser(res.user);
       return res.user;
     } catch (e) {
-      const msg = e.response?.data?.message || e.message || "Yenilenme uğursuz oldu";
-      throw new Error(msg);
+      rethrow("Profil yenilenmedi", e, "Yenilenme uğursuz oldu");
     }
   }, []);
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, updateProfile }}
+      value={{ user, loading, error, login, register, logout, updateProfile }}
     >
       {children}
     </AuthContext.Provider>

@@ -3,6 +3,7 @@ import {
   STORAGE_KEYS,
   read,
   write,
+  writeOrThrow,
   remove,
   genId,
   mergeDeleted,
@@ -45,13 +46,32 @@ describe("write", () => {
     expect(localStorage.getItem("k")).toBe("[1,2]");
   });
 
-  it("swallows localStorage errors", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("reports failure instead of pretending the value was stored", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("quota");
     });
-    expect(() => write("k", 1)).not.toThrow();
-    expect(warn).toHaveBeenCalled();
+    expect(write("k", 1)).toBe(false);
+    expect(error).toHaveBeenCalled();
+  });
+
+  it("returns true when the value is stored", () => {
+    expect(write("k", 1)).toBe(true);
+  });
+});
+
+describe("writeOrThrow", () => {
+  it("throws when the value cannot be stored", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota");
+    });
+    expect(() => writeOrThrow("k", 1)).toThrow(/yadda/i);
+  });
+
+  it("stores the value when localStorage works", () => {
+    writeOrThrow("k", { a: 1 });
+    expect(localStorage.getItem("k")).toBe('{"a":1}');
   });
 });
 

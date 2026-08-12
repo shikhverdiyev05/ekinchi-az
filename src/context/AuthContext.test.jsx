@@ -58,11 +58,26 @@ describe("bootstrap", () => {
   it("clears the stored session when the token is no longer valid", async () => {
     write(STORAGE_KEYS.token, "tok");
     write(STORAGE_KEYS.currentUser, user);
-    API.auth.getMe.mockRejectedValue(new Error("401"));
+    API.auth.getMe.mockRejectedValue(
+      Object.assign(new Error("401"), { response: { status: 401 } })
+    );
     const { result } = await renderReadyAuth();
     expect(result.current.user).toBeNull();
     expect(read(STORAGE_KEYS.token)).toBeNull();
     expect(read(STORAGE_KEYS.currentUser)).toBeNull();
+  });
+
+  it("keeps the cached session and exposes an error when the request fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    write(STORAGE_KEYS.token, "tok");
+    write(STORAGE_KEYS.currentUser, user);
+    API.auth.getMe.mockRejectedValue(
+      Object.assign(new Error("offline"), { code: "ERR_NETWORK" })
+    );
+    const { result } = await renderReadyAuth();
+    expect(result.current.user).toEqual(user);
+    expect(result.current.error).toBeTruthy();
+    expect(read(STORAGE_KEYS.token)).toBe("tok");
   });
 });
 

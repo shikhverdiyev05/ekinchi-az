@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import API from "../api";
 import { useAuth } from "../context/AuthContext";
 import { CATEGORIES, REGIONS } from "../utils/constants";
 import { LIMITS } from "../utils/security";
+import { describeError } from "../utils/errors";
 import Spinner from "../components/Spinner";
+import ErrorState from "../components/ErrorState";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
 import { FiSave, FiAlertCircle, FiChevronLeft } from "react-icons/fi";
@@ -13,8 +15,9 @@ export default function ListingForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast, show } = useToast();
+  const { toast, show, showError, hide } = useToast();
   const [loading, setLoading] = useState(!!id);
+  const [loadError, setLoadError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -33,21 +36,28 @@ export default function ListingForm() {
     if (!user) navigate("/login");
   }, [user, navigate]);
 
-  useEffect(() => {
+  const loadListing = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    API.listings
-      .get(id)
-      .then((res) => {
-        if ((res.listing.owner?.id || res.listing.userId) !== user?.id) {
-          show("Bu elanı redaktə etmək olmaz", "error");
-          navigate(`/listings/${id}`);
-          return;
-        }
-        setForm(res.listing);
-      })
-      .finally(() => setLoading(false));
-  }, [id, user]);
+    setLoadError("");
+    try {
+      const res = await API.listings.get(id);
+      if ((res.listing.owner?.id || res.listing.userId) !== user?.id) {
+        show("Bu elanı redaktə etmək olmaz", "error");
+        navigate(`/listings/${id}`);
+        return;
+      }
+      setForm(res.listing);
+    } catch (e) {
+      setLoadError(describeError(`Redakte edilecek elan yuklenmedi (${id})`, e));
+    } finally {
+      setLoading(false);
+    }
+  }, [id, user, navigate, show]);
+
+  useEffect(() => {
+    loadListing();
+  }, [loadListing]);
 
   const currentCat = CATEGORIES.find((c) => c.id === form.category);
 
@@ -68,13 +78,18 @@ export default function ListingForm() {
       }
       navigate("/profile?tab=listings");
     } catch (err) {
-      show("Xəta baş verdi", "error");
+      showError(
+        id ? `Elan yenilenmedi (${id})` : "Elan yaradilmadi",
+        err,
+        id ? "Elan yenilənmədi" : "Elan yaradılmadı"
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
   if (loading) return <Spinner />;
+  if (loadError) return <ErrorState message={loadError} onRetry={loadListing} />;
 
   return (
     <div className="max-w-2xl mx-auto px-2">
@@ -254,7 +269,7 @@ export default function ListingForm() {
         </div>
       </form>
 
-      <Toast {...toast} onClose={() => {}} />
+      <Toast {...toast} onClose={hide} />
     </div>
   );
 }

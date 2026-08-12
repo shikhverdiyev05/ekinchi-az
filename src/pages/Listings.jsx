@@ -4,13 +4,16 @@ import API from "../api";
 import ListingCard from "../components/ListingCard";
 import Spinner from "../components/Spinner";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 import { CATEGORIES } from "../utils/constants";
+import { describeError } from "../utils/errors";
 import { FiSearch, FiFilter, FiX, FiGrid } from "react-icons/fi";
 
 export default function Listings() {
   const [params, setParams] = useSearchParams();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [q, setQ] = useState(params.get("q") || "");
   const [type, setType] = useState(params.get("type") || "");
   const [category, setCategory] = useState(params.get("category") || "");
@@ -18,11 +21,13 @@ export default function Listings() {
 
   const fetchListings = async () => {
     setLoading(true);
+    setError("");
     try {
       const res = await API.listings.list({ q, type, category });
       setListings(res.listings || []);
     } catch (e) {
       setListings([]);
+      setError(describeError("Elanlar yuklenmedi", e));
     } finally {
       setLoading(false);
     }
@@ -107,6 +112,8 @@ export default function Listings() {
 
       {loading ? (
         <Spinner />
+      ) : error ? (
+        <ErrorState message={error} onRetry={fetchListings} />
       ) : listings.length === 0 ? (
         <EmptyState
           title="Elan tapılmadı"
