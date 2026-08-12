@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import API from "../api";
-import { useAuth } from "../context/AuthContext";
+import { useRequireAuth } from "../hooks/useRequireAuth";
+import Avatar from "../components/Avatar";
+import IconField from "../components/IconField";
+import TypeBadge from "../components/TypeBadge";
 import ListingCard from "../components/ListingCard";
 import PostCard from "../components/PostCard";
 import Spinner from "../components/Spinner";
@@ -35,8 +38,7 @@ const TABS = [
 ];
 
 export default function Profile() {
-  const { user, updateProfile } = useAuth();
-  const navigate = useNavigate();
+  const { user, updateProfile } = useRequireAuth();
   const [params, setParams] = useSearchParams();
   const { toast, show } = useToast();
   const [tab, setTab] = useState(params.get("tab") || "listings");
@@ -52,10 +54,6 @@ export default function Profile() {
     bio: user?.bio || "",
   });
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!user) navigate("/login");
-  }, [user, navigate]);
 
   useEffect(() => {
     setForm({
@@ -126,13 +124,12 @@ export default function Profile() {
       {/* Profile Header */}
       <div className="card p-4 sm:p-6 mb-6 bg-gradient-to-br from-brand-50 to-white">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center text-2xl sm:text-3xl font-bold overflow-hidden shrink-0">
-            {user.avatar ? (
-              <img src={user.avatar} alt="" className="w-full h-full object-cover" />
-            ) : (
-              user.fullName?.charAt(0).toUpperCase()
-            )}
-          </div>
+          <Avatar
+            name={user.fullName}
+            src={user.avatar}
+            bgClassName="bg-gradient-to-br from-brand-500 to-brand-700"
+            className="w-16 h-16 sm:w-20 sm:h-20 text-2xl sm:text-3xl font-bold"
+          />
           <div className="flex-1 min-w-0">
             <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
               {user.fullName}
@@ -242,15 +239,7 @@ export default function Profile() {
               <div key={o.id} className="card p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
                   <div className="flex gap-2 flex-wrap">
-                    <span
-                      className={`badge ${
-                        o.type === "rent"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-brand-100 text-brand-700"
-                      }`}
-                    >
-                      {o.type === "rent" ? "İcarə" : "Satış"}
-                    </span>
+                    <TypeBadge type={o.type} />
                     <span className="badge bg-gray-100 text-gray-700">
                       {o.status}
                     </span>
@@ -313,36 +302,33 @@ export default function Profile() {
           </div>
           <div>
             <label className="label">Email</label>
-            <div className="relative">
-              <FiMail className="absolute left-3 top-3 text-gray-400" />
+            <IconField icon={FiMail}>
               <input value={user.email} disabled className="input pl-10 bg-gray-50" />
-            </div>
+            </IconField>
             <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
               <FiAlertCircle /> Email dəyişdirilə bilməz
             </p>
           </div>
           <div>
             <label className="label">Telefon</label>
-            <div className="relative">
-              <FiPhone className="absolute left-3 top-3 text-gray-400" />
+            <IconField icon={FiPhone}>
               <input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="+994 50 000 00 00"
                 className="input pl-10"
               />
-            </div>
+            </IconField>
           </div>
           <div>
             <label className="label">Region</label>
-            <div className="relative">
-              <FiMapPin className="absolute left-3 top-3 text-gray-400" />
+            <IconField icon={FiMapPin}>
               <input
                 value={form.region}
                 onChange={(e) => setForm({ ...form, region: e.target.value })}
                 className="input pl-10"
               />
-            </div>
+            </IconField>
           </div>
           <div>
             <label className="label">Haqqında</label>

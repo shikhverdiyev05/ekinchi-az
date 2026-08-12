@@ -4,6 +4,7 @@ import API from "../api";
 import ListingCard from "../components/ListingCard";
 import Spinner from "../components/Spinner";
 import EmptyState from "../components/EmptyState";
+import IconField from "../components/IconField";
 import { CATEGORIES } from "../utils/constants";
 import { FiSearch, FiFilter, FiX, FiGrid } from "react-icons/fi";
 
@@ -61,15 +62,14 @@ export default function Listings() {
 
       <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100 mb-5 space-y-3 sticky top-16 z-20">
         <div className="flex gap-2">
-          <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-3 text-gray-400" />
+          <IconField icon={FiSearch} className="flex-1">
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Elan adı ilə axtar..."
               className="input pl-10"
             />
-          </div>
+          </IconField>
           {(q || type || category) && (
             <button onClick={reset} className="btn-ghost" title="Təmizlə">
               <FiX />

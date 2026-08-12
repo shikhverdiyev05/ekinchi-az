@@ -40,11 +40,6 @@ export function genId(prefix = "id") {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function mergeDeleted(items, deletedSet) {
-  if (!Array.isArray(items)) return items;
-  return items.filter((i) => !deletedSet.has(i.id));
-}
-
 export function getDeletedSet() {
   return new Set(read(STORAGE_KEYS.deletedItems, []));
 }

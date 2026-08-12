@@ -10,6 +10,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import API from "../api";
 import { timeAgo } from "../utils/constants";
+import Avatar from "./Avatar";
 
 export default function PostCard({ post, onDelete }) {
   const { user } = useAuth();
@@ -97,13 +98,7 @@ export default function PostCard({ post, onDelete }) {
   return (
     <div className="card p-3 sm:p-4 mb-4">
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold overflow-hidden shrink-0">
-          {author?.avatar ? (
-            <img src={author.avatar} alt="" className="w-full h-full object-cover" />
-          ) : (
-            authorName.charAt(0).toUpperCase()
-          )}
-        </div>
+        <Avatar name={authorName} src={author?.avatar} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
@@ -188,9 +183,10 @@ export default function PostCard({ post, onDelete }) {
           )}
           {comments.map((c) => (
             <div key={c.id} className="flex gap-2">
-              <div className="w-7 h-7 shrink-0 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs font-bold">
-                {c.author?.fullName?.charAt(0).toUpperCase() || "?"}
-              </div>
+              <Avatar
+                name={c.author?.fullName}
+                className="w-7 h-7 text-xs font-bold"
+              />
               <div className="flex-1 bg-gray-50 rounded-lg px-3 py-2 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold text-gray-800 truncate">

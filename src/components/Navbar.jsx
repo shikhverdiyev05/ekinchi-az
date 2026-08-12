@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import Avatar from "./Avatar";
 import {
   FiHome,
   FiList,
@@ -72,13 +73,11 @@ export default function Navbar() {
                   to="/profile"
                   className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-100"
                 >
-                  <div className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-semibold text-sm overflow-hidden">
-                    {user.avatar ? (
-                      <img src={user.avatar} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      user.fullName?.charAt(0).toUpperCase()
-                    )}
-                  </div>
+                  <Avatar
+                    name={user.fullName}
+                    src={user.avatar}
+                    className="w-8 h-8 font-semibold text-sm"
+                  />
                   <span className="text-sm font-medium text-gray-700 max-w-[100px] truncate">
                     {user.fullName?.split(" ")[0]}
                   </span>

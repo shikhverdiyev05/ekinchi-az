@@ -1,6 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import API from "../api";
-import { read, write, remove, STORAGE_KEYS } from "../utils/store";
+import { read, remove, STORAGE_KEYS } from "../utils/store";
+
+function clearStoredAuth() {
+  remove(STORAGE_KEYS.token);
+  remove(STORAGE_KEYS.currentUser);
+}
 
 const AuthContext = createContext(null);
 
@@ -17,9 +22,8 @@ export function AuthProvider({ children }) {
     try {
       const res = await API.auth.getMe();
       setUser(res.user);
-    } catch (e) {
-      remove(STORAGE_KEYS.token);
-      remove(STORAGE_KEYS.currentUser);
+    } catch {
+      clearStoredAuth();
       setUser(null);
     } finally {
       setLoading(false);
@@ -30,44 +34,37 @@ export function AuthProvider({ children }) {
     bootstrap();
   }, [bootstrap]);
 
-  const login = useCallback(async (email, password) => {
+  const runAuth = useCallback(async (request, fallbackMessage) => {
     try {
-      const res = await API.auth.login(email, password);
+      const res = await request();
       setUser(res.user);
       return res.user;
     } catch (e) {
-      const msg = e.response?.data?.message || e.message || "Giriş uğursuz oldu";
-      throw new Error(msg);
+      throw new Error(e.response?.data?.message || e.message || fallbackMessage);
     }
   }, []);
 
-  const register = useCallback(async (data) => {
-    try {
-      const res = await API.auth.register(data);
-      setUser(res.user);
-      return res.user;
-    } catch (e) {
-      const msg = e.response?.data?.message || e.message || "Qeydiyyat uğursuz oldu";
-      throw new Error(msg);
-    }
-  }, []);
+  const login = useCallback(
+    (email, password) =>
+      runAuth(() => API.auth.login(email, password), "Giriş uğursuz oldu"),
+    [runAuth]
+  );
+
+  const register = useCallback(
+    (data) => runAuth(() => API.auth.register(data), "Qeydiyyat uğursuz oldu"),
+    [runAuth]
+  );
 
   const logout = useCallback(() => {
-    remove(STORAGE_KEYS.token);
-    remove(STORAGE_KEYS.currentUser);
+    clearStoredAuth();
     setUser(null);
   }, []);
 
-  const updateProfile = useCallback(async (data) => {
-    try {
-      const res = await API.auth.updateProfile(data);
-      setUser(res.user);
-      return res.user;
-    } catch (e) {
-      const msg = e.response?.data?.message || e.message || "Yenilenme uğursuz oldu";
-      throw new Error(msg);
-    }
-  }, []);
+  const updateProfile = useCallback(
+    (data) =>
+      runAuth(() => API.auth.updateProfile(data), "Yenilenme uğursuz oldu"),
+    [runAuth]
+  );
 
   return (
     <AuthContext.Provider

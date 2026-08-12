@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import API from "../api";
-import { useAuth } from "../context/AuthContext";
-import { CATEGORIES, REGIONS } from "../utils/constants";
+import { useRequireAuth } from "../hooks/useRequireAuth";
+import { CATEGORIES, REGIONS, listingOwnerId } from "../utils/constants";
 import Spinner from "../components/Spinner";
+import BackButton from "../components/BackButton";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
-import { FiSave, FiAlertCircle, FiChevronLeft } from "react-icons/fi";
+import { FiSave, FiAlertCircle } from "react-icons/fi";
 
 export default function ListingForm() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useRequireAuth();
   const { toast, show } = useToast();
   const [loading, setLoading] = useState(!!id);
   const [submitting, setSubmitting] = useState(false);
@@ -29,16 +30,12 @@ export default function ListingForm() {
   });
 
   useEffect(() => {
-    if (!user) navigate("/login");
-  }, [user, navigate]);
-
-  useEffect(() => {
     if (!id) return;
     setLoading(true);
     API.listings
       .get(id)
       .then((res) => {
-        if ((res.listing.owner?.id || res.listing.userId) !== user?.id) {
+        if (listingOwnerId(res.listing) !== user?.id) {
           show("Bu elanı redaktə etmək olmaz", "error");
           navigate(`/listings/${id}`);
           return;
@@ -77,12 +74,7 @@ export default function ListingForm() {
 
   return (
     <div className="max-w-2xl mx-auto px-2">
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-4 text-sm text-gray-600 hover:text-brand-700 flex items-center gap-1"
-      >
-        <FiChevronLeft /> Geri
-      </button>
+      <BackButton />
 
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         {id ? "Elanı redakte et" : "Yeni elan yerləşdir"}

@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../api";
-import { useAuth } from "../context/AuthContext";
+import { useRequireAuth } from "../hooks/useRequireAuth";
 import { formatPrice } from "../utils/constants";
 import Spinner from "../components/Spinner";
 import EmptyState from "../components/EmptyState";
+import BackButton from "../components/BackButton";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
-import { FiTrash2, FiShoppingCart, FiCheck, FiChevronLeft } from "react-icons/fi";
+import { FiTrash2, FiShoppingCart, FiCheck } from "react-icons/fi";
 
 export default function Cart() {
-  const { user } = useAuth();
+  const { user } = useRequireAuth();
   const navigate = useNavigate();
   const { toast, show } = useToast();
   const [cart, setCart] = useState([]);
@@ -26,11 +27,7 @@ export default function Cart() {
   };
 
   useEffect(() => {
-    if (!user) {
-      navigate("/login");
-      return;
-    }
-    fetch();
+    if (user) fetch();
   }, [user]);
 
   const remove = async (listingId) => {
@@ -74,12 +71,7 @@ export default function Cart() {
 
   return (
     <div>
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-4 text-sm text-gray-600 hover:text-brand-700 flex items-center gap-1"
-      >
-        <FiChevronLeft /> Geri
-      </button>
+      <BackButton />
 
       <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Səbətim</h1>
 
